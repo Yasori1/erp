@@ -4,6 +4,7 @@ using FlooringErp.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using MySqlConnector;
 
 var builder = WebApplication.CreateBuilder(args);
 var jwtSecret = builder.Configuration["Jwt:Secret"];
@@ -17,6 +18,17 @@ if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.Length < 32)
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException("ConnectionStrings:Default must be supplied through environment configuration.");
+}
+
+try
+{
+    _ = new MySqlConnectionStringBuilder(connectionString);
+}
+catch (ArgumentException exception)
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:Default is not a valid MySQL connection string. Use key/value pairs such as Server=localhost;Port=3306;Database=flooring_erp;User=root;Password=...;",
+        exception);
 }
 
 builder.Services.AddHttpContextAccessor();

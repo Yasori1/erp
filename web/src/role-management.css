@@ -1,0 +1,190 @@
+.role-message {
+  margin: 12px 0;
+  padding: 11px 13px;
+  border-radius: 5px;
+  font-size: 13px;
+}
+
+.role-message.error {
+  background: #fff0ed;
+  color: #9f3424;
+}
+
+.role-message.success {
+  background: #edf7f0;
+  color: #27663c;
+}
+
+.role-create-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #e0e4e7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.role-create-form label {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 380px);
+  color: #40474f;
+  font-size: 12px;
+}
+
+.role-create-form input,
+.user-admin-panel select,
+.user-admin-panel input {
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #d6dce0;
+  border-radius: 5px;
+  background: #fff;
+  color: #20252a;
+  font: inherit;
+}
+
+.role-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.6fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.role-admin-list,
+.role-admin-permissions,
+.user-admin-panel {
+  padding: 18px;
+}
+
+.role-admin-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.role-admin-title h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.role-admin-title p {
+  margin: 5px 0 0;
+  color: #727a82;
+  font-size: 12px;
+}
+
+.role-admin-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 9px;
+  border: 0;
+  border-top: 1px solid #edf0f2;
+  background: transparent;
+  color: #252b30;
+  text-align: left;
+  cursor: pointer;
+}
+
+.role-admin-item.selected {
+  background: #f4f7f5;
+}
+
+.role-admin-item strong,
+.role-admin-item small {
+  display: block;
+}
+
+.role-admin-item small,
+.user-admin-panel td small {
+  margin-top: 4px;
+  color: #737b83;
+  font-size: 11px;
+}
+
+.role-admin-item b {
+  color: #747b84;
+  font-size: 12px;
+}
+
+.permission-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 12px 0;
+  padding: 10px 12px 12px;
+  border: 1px solid #e5e8ea;
+  border-radius: 5px;
+}
+
+.permission-group legend {
+  padding: 0 5px;
+  color: #667078;
+  font-size: 11px;
+}
+
+.permission-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #343b42;
+  font-size: 12px;
+}
+
+.permission-choice input {
+  accent-color: #4d7659;
+}
+
+.role-locked-note {
+  padding: 10px 12px;
+  background: #f4f7f5;
+  color: #4e6354;
+  font-size: 12px;
+}
+
+.role-save-button {
+  margin-top: 8px;
+}
+
+.user-admin-panel {
+  margin-top: 16px;
+}
+
+.user-admin-panel td {
+  vertical-align: middle;
+}
+
+.user-admin-panel td:first-child strong,
+.user-admin-panel td:first-child small {
+  display: block;
+}
+
+.user-admin-panel select {
+  min-width: 180px;
+}
+
+.user-admin-panel input {
+  width: 120px;
+}
+
+@media (max-width: 760px) {
+  .role-admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-group {
+    grid-template-columns: 1fr;
+  }
+
+  .role-create-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

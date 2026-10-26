@@ -1,0 +1,167 @@
+.discount-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-left: 3px solid #d7863f;
+  background: #fff8ef;
+  color: #5d4b39;
+}
+
+.discount-intro p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.commercial-table .panel-heading {
+  margin-bottom: 12px;
+}
+
+.commercial-table td small {
+  display: block;
+  margin-top: 5px;
+  color: #747b84;
+}
+
+.rate-field {
+  display: grid;
+  gap: 5px;
+  min-width: 112px;
+  color: #434a52;
+  font-size: 12px;
+}
+
+.rate-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.rate-input-wrap input {
+  width: 78px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #d8dce0;
+  border-radius: 5px;
+  background: #fff;
+  color: #20252a;
+  font: inherit;
+}
+
+.rate-field small {
+  color: #747b84;
+  font-size: 11px;
+}
+
+.project-rate-list {
+  display: grid;
+  gap: 12px;
+}
+
+.project-rate-row {
+  padding: 18px;
+  border: 1px solid #e2e5e8;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.project-rate-heading,
+.project-rate-fields {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.project-rate-heading h2 {
+  margin: 5px 0 0;
+  font-size: 16px;
+}
+
+.project-rate-fields {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.saved-quote-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.saved-quote {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px;
+  border: 1px solid #e2e5e8;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.saved-quote-main h2 {
+  margin: 10px 0 5px;
+  font-size: 17px;
+}
+
+.saved-quote-main p {
+  margin: 0;
+  color: #747b84;
+  font-size: 13px;
+}
+
+.quote-number,
+.quote-contact,
+.quote-contact span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.quote-number {
+  color: #434a52;
+  font-size: 12px;
+}
+
+.quote-contact {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  color: #59616a;
+  font-size: 12px;
+}
+
+.saved-quote-total {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 5px;
+  min-width: 220px;
+  text-align: right;
+}
+
+.saved-quote-total strong {
+  font-size: 20px;
+}
+
+.saved-quote-total small,
+.saved-quote-total span {
+  color: #747b84;
+  font-size: 12px;
+}
+
+@media (max-width: 680px) {
+  .project-rate-heading,
+  .saved-quote {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .saved-quote-total {
+    justify-items: start;
+    min-width: 0;
+    text-align: left;
+  }
+}

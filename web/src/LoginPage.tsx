@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { ArrowRight, Box, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { apiUrl } from './api'
 import './auth.css'
 
-export type Session = { accessToken: string; user: { displayName: string; role: string; permissions: string[] } }
-
-const apiUrl = import.meta.env.VITE_API_URL ?? 'https://localhost:7239'
+export type Session = { accessToken: string; mode?: 'api' | 'demo'; user: { id: string; email: string; displayName: string; role: string; roleName: string; permissions: string[] } }
 
 export default function LoginPage({ onLogin }: { onLogin: (session: Session) => void }) {
   const [tenantSlug, setTenantSlug] = useState('')
@@ -29,11 +28,11 @@ export default function LoginPage({ onLogin }: { onLogin: (session: Session) => 
         if (response.status >= 500) throw new Error('Hutec API veritabanına bağlanamıyor. API bağlantı ayarlarını kontrol edin.')
         throw new Error(payload?.message ?? 'Giriş bilgileri geçersiz.')
       }
-      const session = { accessToken: payload.accessToken, user: payload.user }
+      const session: Session = { accessToken: payload.accessToken, user: payload.user }
       sessionStorage.setItem('hutec_session', JSON.stringify(session))
       onLogin(session)
     } catch (requestError) {
-      setError(requestError instanceof TypeError ? 'Hutec sunucusuna ulaşılamadı. API adresini ve bağlantınızı kontrol edin.' : requestError instanceof Error ? requestError.message : 'Giriş işlemi tamamlanamadı.')
+      setError(requestError instanceof TypeError ? 'Hutec API’ye ulaşılamadı. API’yi FlooringErp.Api klasöründe dotnet run ile başlatın; varsayılan adres http://localhost:5220.' : requestError instanceof Error ? requestError.message : 'Giriş işlemi tamamlanamadı.')
     } finally {
       setLoading(false)
     }

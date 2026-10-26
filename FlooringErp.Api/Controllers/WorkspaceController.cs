@@ -60,7 +60,9 @@ public sealed class WorkspaceController(
         if (!HasPermission("quotes.read")) return Forbid();
 
         var query = db.Quotes.AsNoTracking();
-        if (!User.IsInRole("Admin"))
+        var canReadAllQuotes = User.IsInRole("Admin") || User.IsInRole("FounderGeneralManager") ||
+            User.Claims.Any(item => item.Type == "permission" && item.Value == "quotes.read.all");
+        if (!canReadAllQuotes)
         {
             var currentUserId = CurrentUserId();
             if (currentUserId is null) return Unauthorized();
@@ -116,7 +118,7 @@ public sealed class WorkspaceController(
     [HttpPost("quotes/{id:guid}/approve")]
     public async Task<ActionResult<QuoteResponse>> ApproveQuote(Guid id, CancellationToken cancellationToken)
     {
-        if (!IsManagement() || !HasPermission("quotes.approve")) return Forbid();
+        if (!HasPermission("quotes.approve")) return Forbid();
 
         var quote = await db.Quotes.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (quote is null) return NotFound();

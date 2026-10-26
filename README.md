@@ -41,6 +41,10 @@ npm install
 npm run dev
 ```
 
+MySQL/API henüz hazır değilse login ekranındaki **Demo patron önizlemesi** düğmesiyle arayüzü açabilirsiniz. Bu geliştirme önizlemesi sadece tarayıcı `localStorage` verisini kullanır, gerçek kimlik doğrulaması veya güvenlik sağlamaz ve production build'de gösterilmez. Gerçek giriş için API ve seed edilmiş kurucu hesabı gerekir.
+
+Frontend varsayılan olarak `http://localhost:5220` adresindeki HTTP API'ye bağlanır. Farklı bir API adresi kullanıyorsanız Vite'ı başlatmadan önce `$env:VITE_API_URL = 'https://localhost:7239'` gibi bir değer ayarlayın.
+
 ## Yerel test hesaplarini olusturma
 
 MySQL calisir durumdayken API'yi gelistirme hesaplariyla baslatmak icin ayni PowerShell oturumunda:
@@ -63,6 +67,7 @@ Login ekranında kullanılacak test hesapları:
 | Saha personeli | `artemis-proje` | `saha@artemisproje.com` |
 
 Şifreler yalnızca environment variable'dan alınır ve kodda tutulmaz. Seed işlemi mevcut kullanıcıları tekrar oluşturmaz.
+Kurucu girişi için çalışma alanı `artemis-proje`, e-posta `admin@artemisproje.com` ve şifre `Hutec__SeedAdminPassword` değişkenine verdiğiniz değerdir. Uygulama geliştirme modunda da giriş olmadan açılmaz.
 
 API veritabani erisimi yoksa login veya korumali endpoint gercek hata ile doner; frontend sahte oturum uretmez.
 
@@ -78,7 +83,11 @@ API veritabani erisimi yoksa login veya korumali endpoint gercek hata ile doner;
 - `POST /api/workspace/quotes/{id}/approve`
 - `POST /api/workspace/easy-quote`
 - `GET /api/management/roles`
+- `GET /api/management/roles/{code}`
+- `POST /api/management/roles`
 - `PUT /api/management/roles/{code}/permissions`
+- `GET /api/management/users`
+- `PUT /api/management/users/{id}/role`
 - `PUT /api/management/users/{id}/approval-limits`
 
-Veritabani semasi icin sonraki adim EF migration ve seed akisini eklemektir. PDF template editor, kur servisi, stok hareketleri, teklif kilidi/approval workflow ve platform-owner paneli domain katmanina ayrilacak moduller olarak planlanmistir.
+Rol ve personel yönetimi endpoint'leri `users.manage` izni gerektirir. Kurucu rolü değiştirilemez ve başka personele atanamaz. Rol veya izin değişiklikleri yeni girişte JWT'ye yansır. PDF teklif çıktısı, parola sıfırlama/MFA, kullanıcı daveti, gerçek zamanlı kur servisi, stok hareket geçmişi ve audit log sonraki modül adaylarıdır.

@@ -1,0 +1,35 @@
+.demo-login-button {
+  position: fixed;
+  z-index: 5;
+  right: max(24px, calc((100vw - 480px) / 2));
+  bottom: 24px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #b96d31;
+  border-radius: 5px;
+  background: #fff8ef;
+  color: #81491e;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.demo-mode-banner {
+  position: fixed;
+  z-index: 20;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 8px 16px;
+  background: #9b4d22;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.demo-mode-banner ~ .sidebar,
+.demo-mode-banner ~ .main-content {
+  padding-top: 34px;
+}

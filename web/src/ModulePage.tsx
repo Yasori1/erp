@@ -1,13 +1,17 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { Archive, ArrowUpRight, Check, ChevronDown, CircleDollarSign, Download, Filter, FolderKanban, Layers3, LockKeyhole, MoreHorizontal, Pencil, Plus, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, UserPlus, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Archive, ArrowUpRight, Check, ChevronDown, CircleDollarSign, Download, Filter, Layers3, LockKeyhole, MoreHorizontal, Pencil, Plus, RefreshCw, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, UserPlus, Users, X } from 'lucide-react'
 import './module.css'
 import './settings.css'
 import AnalyticsPage from './AnalyticsPage'
-import AccessControlPage from './AccessControlPage'
+import { loadCustomers, loadProjects, saveCustomers, type CommercialCustomer } from './commercialData'
+import DiscountsPage from './DiscountsPage'
 import EasyQuotePage from './EasyQuotePage'
+import QuoteWorkspace from './QuoteWorkspace'
+import RoleManagementPage from './RoleManagementPage'
 import StockEntryModal from './StockEntryModal'
+import type { Session } from './LoginPage'
 
-export type ModuleKey = 'customers' | 'quotes' | 'systems' | 'stock' | 'projects' | 'rates' | 'settings' | 'analytics' | 'access' | 'easyQuote'
+export type ModuleKey = 'customers' | 'quotes' | 'systems' | 'stock' | 'projects' | 'rates' | 'settings' | 'analytics' | 'access' | 'easyQuote' | 'discounts'
 export type CreateType = 'quote' | 'project'
 
 type Customer = { name: string; contact: string; city: string; projects: number; value: string; status: string; initials: string }
@@ -23,15 +27,16 @@ const products = [
   { name: 'KAT-IND 450', description: 'Ağır yük endüstriyel sistem', layers: 'Primer · Harç · Seal coat', coverage: '3,5 kg / m²', stock: '1.240 kg', status: 'Yayında' },
 ]
 
-export default function ModulePage({ module, onNavigate, onCreate }: { module: ModuleKey; onNavigate: (module: ModuleKey) => void; onCreate: (type: CreateType) => void }) {
+export default function ModulePage({ module, onNavigate, onCreate, session }: { module: ModuleKey; onNavigate: (module: ModuleKey) => void; onCreate: (type: CreateType) => void; session: Session }) {
   if (module === 'analytics') return <AnalyticsPage onCreate={onCreate} />
-  if (module === 'access') return <AccessControlPage />
+  if (module === 'access') return <RoleManagementPage session={session} />
+  if (module === 'discounts') return <DiscountsPage />
   if (module === 'easyQuote') return <EasyQuotePage />
-  if (module === 'customers') return <CustomersPage />
-  if (module === 'quotes') return <QuotesPage onCreate={onCreate} />
+  if (module === 'customers') return <CommercialCustomersPage />
+  if (module === 'quotes') return <QuoteWorkspace onCreate={onCreate} fallback={<QuotesPage onCreate={onCreate} />} />
   if (module === 'systems') return <SystemsPage />
   if (module === 'stock') return <StockPage />
-  if (module === 'projects') return <SimplePage title="Projeler" eyebrow="SAHA OPERASYONLARI" description="Müşteri projelerini, metrajları ve uygulama durumunu tek akışta yönetin." icon={<FolderKanban size={21} />} action="Yeni proje" />
+  if (module === 'projects') return <ProjectsPage onCreate={onCreate} />
   if (module === 'rates') return <RatesPage />
   return <SettingsPage onNavigate={onNavigate} />
 }
@@ -43,7 +48,48 @@ function PageHeader({ eyebrow, title, description, action, icon, onAction }: { e
 function Toolbar({ search, onSearch, children }: { search: string; onSearch: (value: string) => void; children?: ReactNode }) {
   return <div className="module-toolbar"><div className="module-search"><Search size={16} /><input value={search} onChange={event => onSearch(event.target.value)} placeholder="Ara..." /></div><div className="toolbar-actions">{children}<button className="outline-button"><Filter size={14} /> Filtrele</button></div></div>
 }
-function CustomersPage() {
+function CommercialCustomersPage() {
+  const [search, setSearch] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [customers, setCustomers] = useState(loadCustomers)
+  const [form, setForm] = useState({ name: '', contact: '', email: '', phone: '', city: '' })
+  const filtered = useMemo(() => customers.filter(item => `${item.name} ${item.contact} ${item.email}`.toLowerCase().includes(search.toLowerCase())), [customers, search])
+
+  function createCustomer(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const customer: CommercialCustomer = {
+      id: crypto.randomUUID(),
+      ...form,
+      status: 'Aktif',
+      dealerDiscountPercent: 10,
+      retailDiscountPercent: 5,
+      personalDiscountPercent: 0,
+    }
+    const next = [customer, ...customers]
+    saveCustomers(next)
+    setCustomers(next)
+    setForm({ name: '', contact: '', email: '', phone: '', city: '' })
+    setShowForm(false)
+  }
+
+  return <><PageHeader eyebrow="CRM / MÜŞTERİLER" title="Müşteri ilişkileri" description="Müşteri iletişimini ve müşteri bazlı fiyat koşullarını yönetin." action="Yeni müşteri" onAction={() => setShowForm(true)} /><Toolbar search={search} onSearch={setSearch}><button className="select-button">Tüm müşteriler <ChevronDown size={14} /></button><button className="icon-text-button" onClick={() => setShowForm(true)}><UserPlus size={15} /> Hızlı kayıt</button></Toolbar><section className="panel module-panel"><div className="panel-heading"><div><h2>Müşteri listesi</h2><p>{customers.length} müşteri kayıtlı</p></div><button className="icon-text-button"><Download size={15} /> Dışa aktar</button></div><div className="table-scroll"><table><thead><tr><th>Firma</th><th>İletişim</th><th>E-posta</th><th>Telefon</th><th>Lokasyon</th><th>İskonto</th><th>Durum</th></tr></thead><tbody>{filtered.map(customer => <tr key={customer.id}><td><div className="table-person"><span className="mini-avatar">{customer.name.slice(0, 2).toUpperCase()}</span><strong>{customer.name}</strong></div></td><td>{customer.contact}</td><td>{customer.email}</td><td>{customer.phone}</td><td>{customer.city || '—'}</td><td><strong>Bayi %{customer.dealerDiscountPercent} · Perakende %{customer.retailDiscountPercent}</strong></td><td><span className={`status ${customer.status === 'Pasif' ? 'slate' : 'green'}`}><i />{customer.status}</span></td></tr>)}</tbody></table></div>{filtered.length === 0 && <p className="empty-state">Aramanızla eşleşen müşteri bulunamadı.</p>}</section>{showForm && <Modal title="Yeni müşteri" onClose={() => setShowForm(false)}><form onSubmit={createCustomer}><label>Firma adı<input required value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} placeholder="Örn. Nova Endüstri" /></label><label>İletişim kişisi<input required value={form.contact} onChange={event => setForm({ ...form, contact: event.target.value })} placeholder="Ad soyad" /></label><label>E-posta<input required type="email" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} placeholder="ornek@firma.com" /></label><label>Telefon<input required type="tel" value={form.phone} onChange={event => setForm({ ...form, phone: event.target.value })} placeholder="+90 5xx xxx xx xx" /></label><label>Şehir<input value={form.city} onChange={event => setForm({ ...form, city: event.target.value })} placeholder="İstanbul" /></label><button className="primary-button modal-submit" type="submit"><Check size={16} /> Müşteriyi kaydet</button></form></Modal>}</>
+}
+function ProjectsPage({ onCreate }: { onCreate: (type: CreateType) => void }) {
+  const [projects, setProjects] = useState(loadProjects)
+  const customers = loadCustomers()
+
+  useEffect(() => {
+    const refresh = () => setProjects(loadProjects())
+    window.addEventListener('commercial-project-created', refresh)
+    return () => window.removeEventListener('commercial-project-created', refresh)
+  }, [])
+
+  return <><PageHeader eyebrow="SAHA OPERASYONLARI" title="Projeler" description="Müşteri projelerini, metrajları ve proje bazlı fiyat koşullarını yönetin." action="Yeni proje" onAction={() => onCreate('project')} /><section className="panel module-panel"><div className="panel-heading"><div><h2>Proje listesi</h2><p>{projects.length} proje kayıtlı</p></div></div><div className="table-scroll"><table><thead><tr><th>Proje</th><th>Müşteri</th><th>Metraj</th><th>Başlangıç</th><th>Bayi indirimi</th><th>Perakende indirimi</th></tr></thead><tbody>{projects.map(project => {
+    const customer = customers.find(item => item.id === project.customerId)
+    return <tr key={project.id}><td><strong>{project.name}</strong></td><td>{customer?.name ?? 'Müşteri bulunamadı'}</td><td>{project.areaM2.toLocaleString('tr-TR')} m²</td><td>{project.startDate || 'Planlanmadı'}</td><td>{project.dealerDiscountPercent === null ? `Müşteri oranı (%${customer?.dealerDiscountPercent ?? 10})` : `%${project.dealerDiscountPercent}`}</td><td>{project.retailDiscountPercent === null ? `Müşteri oranı (%${customer?.retailDiscountPercent ?? 5})` : `%${project.retailDiscountPercent}`}</td></tr>
+  })}</tbody></table></div>{projects.length === 0 && <p className="empty-state">Henüz proje yok. Yeni proje oluşturarak başlayın.</p>}</section></>
+}
+export function CustomersPage() {
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const filtered = useMemo(() => customers.filter(item => `${item.name} ${item.contact}`.toLowerCase().includes(search.toLowerCase())), [search])
@@ -65,6 +111,6 @@ function CompanySettings() { return <section className="panel settings-content">
 function UsersSettings() { return <section className="panel settings-content"><div className="settings-title"><div><h2>Kullanıcılar & roller</h2><p>Çalışma alanındaki personel hesapları</p></div><button className="primary-button"><Plus size={15} /> Personel ekle</button></div><div className="user-list"><div className="user-row"><span className="mini-avatar">KG</span><div><strong>Kurucu Genel Müdür</strong><small>admin@artemisproje.com</small></div><b>Kurucu / Genel Müdür</b><span className="status green"><i />Aktif</span></div><div className="user-row"><span className="mini-avatar">ST</span><div><strong>Satış Temsilcisi</strong><small>satis@artemisproje.com</small></div><b>Satış Temsilcisi</b><span className="status green"><i />Aktif</span></div><div className="user-row"><span className="mini-avatar">SP</span><div><strong>Saha Personeli</strong><small>saha@artemisproje.com</small></div><b>Saha personeli</b><span className="status slate"><i />Davet bekliyor</span></div></div></section> }
 function SecuritySettings() { return <section className="panel settings-content"><div className="settings-title"><div><h2>Güvenlik</h2><p>Oturum ve tenant güvenlik durumu</p></div><span className="security-live"><i />Koruma aktif</span></div><div className="security-grid"><div className="security-card"><ShieldCheck size={18} /><strong>Tenant izolasyonu</strong><p>Her sorgu JWT tenant claim'i ile sınırlandırılıyor.</p></div><div className="security-card"><LockKeyhole size={18} /><strong>JWT oturumları</strong><p>Token süresi ve aktif oturumlar merkezi olarak izlenir.</p></div><div className="security-card"><Users size={18} /><strong>Rol bazlı erişim</strong><p>Personel yalnızca kendisine açılan modüllere erişebilir.</p></div></div><div className="tenant-notice"><ShieldCheck size={18} /><div><strong>Güvenlik politikaları yürürlükte</strong><p>Token, şifre ve veritabanı bilgileri loglanmaz veya kaynak kodda tutulmaz.</p></div></div></section> }
 function BuildingIcon() { return <Settings2 size={16} /> }
-function SimplePage({ title, description, action, eyebrow, icon }: { title: string; description: string; action: string; eyebrow: string; icon: ReactNode }) { return <><PageHeader eyebrow={eyebrow} title={title} description={description} action={action} icon={icon} /><section className="panel empty-module"><div className="empty-illustration">{icon}</div><h2>{title} çalışma alanı</h2><p>Bu modülün saha akışını buradan başlatabilirsiniz.</p><button className="primary-button"><Plus size={16} /> {action}</button></section></> }
+export function SimplePage({ title, description, action, eyebrow, icon }: { title: string; description: string; action: string; eyebrow: string; icon: ReactNode }) { return <><PageHeader eyebrow={eyebrow} title={title} description={description} action={action} icon={icon} /><section className="panel empty-module"><div className="empty-illustration">{icon}</div><h2>{title} çalışma alanı</h2><p>Bu modülün saha akışını buradan başlatabilirsiniz.</p><button className="primary-button"><Plus size={16} /> {action}</button></section></> }
 function Stat({ label, value, change, tone }: { label: string; value: string; change: string; tone: string }) { return <div className="module-stat"><span className={`stat-dot ${tone}`} /><div><small>{label}</small><strong>{value}</strong><p>{change}</p></div></div> }
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) { return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal" onMouseDown={event => event.stopPropagation()}><div className="modal-heading"><div><h2>{title}</h2><p>Çalışma alanınıza yeni kayıt ekleyin.</p></div><button className="icon-button" onClick={onClose} aria-label="Kapat"><X size={18} /></button></div>{children}</div></div> }

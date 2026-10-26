@@ -43,10 +43,14 @@ public sealed class AuthController(
 
         var (accessToken, expiresAtUtc) = tokenService.Create(user);
         var permissions = user.Permissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var roleName = await db.RoleDefinitions.IgnoreQueryFilters()
+            .Where(item => item.TenantId == tenant!.Id && item.Code == user.Role)
+            .Select(item => item.Name)
+            .SingleOrDefaultAsync(cancellationToken) ?? user.Role;
         return Ok(new LoginResponse(
             accessToken,
             expiresAtUtc,
-            new UserSummary(user.Id, user.Email, user.DisplayName, user.Role, permissions)));
+            new UserSummary(user.Id, user.Email, user.DisplayName, user.Role, roleName, permissions)));
     }
 
     [Authorize]
@@ -65,11 +69,17 @@ public sealed class AuthController(
             return Unauthorized();
         }
 
+        var roleName = await db.RoleDefinitions.AsNoTracking()
+            .Where(item => item.Code == user.Role)
+            .Select(item => item.Name)
+            .SingleOrDefaultAsync(cancellationToken) ?? user.Role;
+
         return Ok(new UserSummary(
             user.Id,
             user.Email,
             user.DisplayName,
             user.Role,
+            roleName,
             user.Permissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
     }
 }
