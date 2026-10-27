@@ -26,6 +26,147 @@
   background: #fff;
 }
 
+.role-header-actions,
+.employee-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.employee-create-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid #e0e4e7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.employee-create-form label {
+  display: grid;
+  gap: 6px;
+  color: #40474f;
+  font-size: 12px;
+}
+
+.employee-create-form input,
+.employee-create-form select {
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid #d6dce0;
+  border-radius: 5px;
+  background: #fff;
+  color: #20252a;
+  font: inherit;
+}
+
+.employee-form-actions {
+  grid-column: 1 / -1;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.employee-form-actions small {
+  color: #6f7880;
+  font-size: 11px;
+}
+
+.invite-link-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(0, 1.4fr);
+  gap: 12px 18px;
+  align-items: center;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid #e8d4b8;
+  border-radius: 6px;
+  background: #fffaf3;
+}
+
+.invite-link-panel strong,
+.invite-link-panel small {
+  display: block;
+}
+
+.invite-link-panel small {
+  margin-top: 5px;
+  color: #747b84;
+  font-size: 11px;
+}
+
+.invite-link-panel > div:last-child {
+  display: flex;
+  gap: 8px;
+}
+
+.invite-link-panel input {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 10px;
+  border: 1px solid #ded8ce;
+  border-radius: 4px;
+  color: #444;
+  font: inherit;
+  font-size: 11px;
+}
+
+.employee-export {
+  position: relative;
+}
+
+.employee-export-menu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  min-width: 178px;
+  padding: 5px;
+  border: 1px solid #e0e4e7;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgb(22 29 34 / 12%);
+}
+
+.employee-export-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #30373d;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.employee-export-menu button:hover {
+  background: #f3f5f4;
+}
+
+.employee-status {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.employee-status.active {
+  background: #edf7f0;
+  color: #27663c;
+}
+
+.employee-status.pending {
+  background: #fff5e8;
+  color: #8d5b19;
+}
+
 .role-create-form label {
   display: grid;
   gap: 6px;
@@ -187,4 +328,26 @@
     align-items: stretch;
     flex-direction: column;
   }
+  .role-header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .employee-create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .invite-link-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .invite-link-panel > div:last-child {
+    flex-wrap: wrap;
+  }
+
 }

@@ -1,0 +1,259 @@
+.business-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 14px 0;
+  color: #737b83;
+  font-size: 12px;
+}
+
+.business-toolbar .module-search {
+  width: min(100%, 380px);
+}
+
+.business-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.business-selected-row {
+  background: #f5f7f5;
+}
+
+.business-row-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2e5940;
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.business-detail {
+  padding: 17px;
+}
+
+.business-detail-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e8ebea;
+}
+
+.business-detail-heading h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.business-detail-heading p {
+  margin: 4px 0 0;
+  color: #737b83;
+  font-size: 12px;
+}
+
+.business-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 14px;
+  margin: 13px 0;
+  color: #626a70;
+  font-size: 11px;
+}
+
+.activity-form,
+.quote-reject-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.activity-form-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.activity-form select,
+.business-field select,
+.business-field input,
+.activity-form textarea,
+.quote-reject-form textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid #dfe3e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #313834;
+  font: inherit;
+  font-size: 12px;
+}
+
+.activity-form textarea,
+.quote-reject-form textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.activity-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.activity-list article {
+  padding: 10px 11px;
+  border-left: 2px solid #c57a37;
+  background: #faf9f5;
+}
+
+.activity-list article strong {
+  font-size: 11px;
+}
+
+.activity-list time {
+  float: right;
+  color: #808781;
+  font-size: 10px;
+}
+
+.activity-list article p {
+  margin: 7px 0 0;
+  color: #505851;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.business-tabs {
+  overflow-x: auto;
+}
+
+.quote-workflow-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.approved-transfer-list {
+  display: grid;
+}
+
+.approved-transfer-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #edf0ee;
+}
+
+.approved-transfer-list strong,
+.approved-transfer-list small {
+  display: block;
+}
+
+.approved-transfer-list small {
+  margin-top: 5px;
+  color: #717a76;
+  font-size: 11px;
+}
+
+.quote-workflow-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 20px;
+  padding: 17px;
+}
+
+.quote-workflow-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  color: #727a82;
+  font-size: 11px;
+}
+
+.quote-workflow-main h2 {
+  margin: 9px 0 4px;
+  font-size: 16px;
+}
+
+.quote-workflow-main > p {
+  margin: 0;
+  color: #646d73;
+  font-size: 12px;
+}
+
+.quote-workflow-total {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 7px;
+  text-align: right;
+}
+
+.quote-workflow-total strong {
+  font-size: 19px;
+}
+
+.quote-workflow-total small {
+  color: #727a82;
+  font-size: 11px;
+}
+
+.quote-workflow-actions,
+.quote-reject-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  border-top: 1px solid #edf0ee;
+}
+
+.quote-reject-reason {
+  margin-top: 8px !important;
+  color: #9b4d22 !important;
+}
+
+.business-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 13px;
+  color: #515a54;
+  font-size: 11px;
+}
+
+.projects-split {
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
+}
+
+@media (max-width: 860px) {
+  .business-split,
+  .projects-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .quote-workflow-card {
+    grid-template-columns: 1fr;
+  }
+
+  .quote-workflow-total {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .quote-workflow-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

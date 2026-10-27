@@ -3,7 +3,7 @@ import type { Session } from './LoginPage'
 export const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5220'
 
 type DemoRole = { id: string; code: string; name: string; permissions: string[]; isSystemRole: boolean }
-type DemoUser = { id: string; email: string; displayName: string; role: string; isActive: boolean; approvalAreaLimitM2: number; approvalForeignCurrencyLimit: number }
+type DemoUser = { id: string; email: string; displayName: string; role: string; isActive: boolean; approvalAreaLimitM2: number; approvalForeignCurrencyLimit: number; inviteToken?: string; inviteExpiresAtUtc?: string; passwordHash?: string; inviteAcceptedAtUtc?: string }
 const roleStorageKey = 'hutec_frontend_demo_roles'
 const userStorageKey = 'hutec_frontend_demo_users'
 const demoPermissions = ['workspace.read', 'customers.read', 'customers.write', 'projects.read', 'quotes.read', 'quotes.read.all', 'quotes.write', 'quotes.approve', 'products.read', 'products.write', 'stock.read', 'stock.write', 'rates.read', 'analytics.read', 'easyquote.use', 'discounts.manage', 'settings.manage', 'users.manage']
@@ -34,6 +34,48 @@ export function createDemoSession(): Session {
   }
 }
 
+async function hashDemoPassword(password: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+
+export async function completeDemoInvite(token: string, password: string) {
+  if (!import.meta.env.DEV) throw new Error('Demo davetleri yalnızca geliştirme ortamında kullanılabilir.')
+  const users = readDemoList<DemoUser>(userStorageKey, initialDemoUsers)
+  const user = users.find(item => item.inviteToken === token)
+  if (!user || !user.inviteExpiresAtUtc || new Date(user.inviteExpiresAtUtc) <= new Date()) throw new Error('Davet bağlantısı geçersiz veya süresi dolmuş.')
+
+  const updated: DemoUser = {
+    ...user,
+    isActive: true,
+    passwordHash: await hashDemoPassword(password),
+    inviteAcceptedAtUtc: new Date().toISOString(),
+    inviteToken: undefined,
+    inviteExpiresAtUtc: undefined,
+  }
+  writeDemoList(userStorageKey, users.map(item => item.id === user.id ? updated : item))
+  return { email: updated.email }
+}
+
+export async function authenticateDemoUser(tenantSlug: string, email: string, password: string): Promise<Session | null> {
+  if (!import.meta.env.DEV) return null
+  if (tenantSlug.trim().toLowerCase() !== 'artemis-proje') return null
+  if (email.trim().toLowerCase() === 'admin@artemisproje.com' && password === 'frontend-demo') return createDemoSession()
+
+  const users = readDemoList<DemoUser>(userStorageKey, initialDemoUsers)
+  const user = users.find(item => item.email.toLowerCase() === email.trim().toLowerCase())
+  if (!user?.isActive || !user.passwordHash || user.passwordHash !== await hashDemoPassword(password)) return null
+  const role = readDemoList(roleStorageKey, initialDemoRoles).find(item => item.code === user.role)
+  if (!role) return null
+
+  return {
+    accessToken: 'frontend-demo-user',
+    mode: 'demo',
+    user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role, roleName: role.name, permissions: role.permissions },
+  }
+}
+
 function readDemoList<T>(key: string, fallback: T[]): T[] {
   try {
     const stored = localStorage.getItem(key)
@@ -58,6 +100,26 @@ async function demoRequest<T>(session: Session, path: string, init: RequestInit)
   if (path === '/api/auth/me' && method === 'GET') return session.user as T
   if (path === '/api/management/roles' && method === 'GET') return roles as T
   if (path === '/api/management/users' && method === 'GET') return users as T
+
+  if (path === '/api/management/users' && method === 'POST') {
+    const role = roles.find(item => item.code === payload.roleCode)
+    if (!role || role.code === 'FounderGeneralManager') throw new Error('Personel için geçerli bir rol seçin.')
+    if (users.some(item => item.email.toLowerCase() === String(payload.email ?? '').toLowerCase())) throw new Error('Bu e-posta adresi zaten kayıtlı.')
+    const inviteToken = `${crypto.randomUUID()}${crypto.randomUUID().replaceAll('-', '')}`
+    const user: DemoUser = {
+      id: crypto.randomUUID(),
+      email: String(payload.email ?? ''),
+      displayName: String(payload.displayName ?? ''),
+      role: role.code,
+      isActive: false,
+      approvalAreaLimitM2: Number(payload.areaLimitM2 ?? 1000),
+      approvalForeignCurrencyLimit: Number(payload.foreignCurrencyLimit ?? 1000),
+      inviteToken,
+      inviteExpiresAtUtc: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    }
+    writeDemoList(userStorageKey, [...users, user])
+    return user as T
+  }
 
   if (path === '/api/management/roles' && method === 'POST') {
     const role: DemoRole = { id: crypto.randomUUID(), code: `custom-${crypto.randomUUID().replaceAll('-', '')}`, name: String(payload.name ?? ''), permissions: [], isSystemRole: false }
@@ -111,4 +173,11 @@ export async function apiRequest<T>(session: Session, path: string, init: Reques
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
+}
+
+export function getDemoInvite(token: string) {
+  const user = readDemoList<DemoUser>(userStorageKey, initialDemoUsers).find(item => item.inviteToken === token)
+  if (!user || !user.inviteExpiresAtUtc || new Date(user.inviteExpiresAtUtc) <= new Date()) return null
+  const role = readDemoList(roleStorageKey, initialDemoRoles).find(item => item.code === user.role)
+  return { displayName: user.displayName, email: user.email, roleName: role?.name ?? user.role, expiresAtUtc: user.inviteExpiresAtUtc }
 }

@@ -1,0 +1,13 @@
+.invite-demo-note {
+  margin-top: 15px !important;
+  padding: 10px 12px;
+  border-left: 3px solid #c57a37;
+  background: #fff6ec;
+  color: #825223 !important;
+  font-size: 11px !important;
+  line-height: 1.5;
+}
+
+.invite-return {
+  margin-top: 18px;
+}

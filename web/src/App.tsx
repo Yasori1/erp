@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowRight, BarChart3, Bell, Box, Building2, Calculator, ChevronDown, CircleDollarSign, ClipboardList, Layers3, LayoutDashboard, LogOut, Menu, Package, Percent, Plus, Search, Settings2, ShieldCheck, Users, X } from 'lucide-react'
+import { Activity, ArrowRight, BarChart3, Bell, Box, Building2, Calculator, ChevronDown, CircleDollarSign, ClipboardList, Layers3, LayoutDashboard, LogOut, Menu, Package, Percent, Plus, Search, Settings2, ShieldCheck, Users, X } from 'lucide-react'
 import './App.css'
 import './flow.css'
 import './popover.css'
@@ -7,9 +7,11 @@ import './demo-mode.css'
 import ModulePage, { type ModuleKey } from './ModulePage'
 import CreateFlow from './CreateFlow'
 import ResourceActionModal, { type ResourceAction } from './ResourceActionModal'
+import InviteAcceptancePage from './InviteAcceptancePage'
 import LoginPage, { type Session } from './LoginPage'
 import WorkspaceModal, { type Workspace } from './WorkspaceModal'
 import { apiRequest, createDemoSession } from './api'
+import { loadInventory, loadProjects, loadQuotes } from './commercialData'
 
 type NavKey = 'overview' | ModuleKey
 const navItems: { key: NavKey; label: string; icon: typeof LayoutDashboard }[] = [
@@ -22,6 +24,7 @@ const navItems: { key: NavKey; label: string; icon: typeof LayoutDashboard }[] =
   { key: 'access', label: 'Roller & yetkiler', icon: ShieldCheck },
   { key: 'easyQuote', label: 'Kolay Teklif', icon: Calculator },
   { key: 'discounts', label: 'İskonto kuralları', icon: Percent },
+  { key: 'audit', label: 'İşlem geçmişi', icon: Activity },
 ]
 const roleLabels: Record<string, string> = { Admin: 'Kurucu / Genel Müdür', FounderGeneralManager: 'Kurucu / Genel Müdür', Sales: 'Satış temsilcisi', Field: 'Saha personeli' }
 const modulePermissions: Record<NavKey, string> = {
@@ -34,17 +37,11 @@ const modulePermissions: Record<NavKey, string> = {
   access: 'users.manage',
   easyQuote: 'easyquote.use',
   discounts: 'discounts.manage',
+  audit: 'users.manage',
   projects: 'projects.read',
   rates: 'rates.read',
   settings: 'settings.manage',
 }
-const recentQuotes = [
-  { id: 'TK-24091', client: 'Dora Lojistik', type: 'Self-leveling epoksi', value: '₺384.600', status: 'Onay bekliyor', tone: 'amber' },
-  { id: 'TK-24090', client: 'Atlas Gıda', type: 'Hijyenik poliüretan', value: '₺218.400', status: 'Taslak', tone: 'slate' },
-  { id: 'TK-24087', client: 'Mavi Makine', type: 'Endüstriyel epoksi', value: '₺726.000', status: 'Onaylandı', tone: 'green' },
-  { id: 'TK-24083', client: 'Kuzey Depo', type: 'Astar + son kat', value: '₺142.800', status: 'Revizyonda', tone: 'blue' },
-]
-
 function App() {
   const [active, setActive] = useState<NavKey>('overview')
   const [session, setSession] = useState<Session | null>(() => {
@@ -58,6 +55,7 @@ function App() {
     }
   })
   const [authChecked, setAuthChecked] = useState(() => !session || session.mode === 'demo')
+  const [, setDashboardRevision] = useState(0)
   const [composer, setComposer] = useState<'quote' | 'project' | null>(null)
   const [resourceAction, setResourceAction] = useState<ResourceAction | null>(null)
   const [mobileNav, setMobileNav] = useState(false)
@@ -88,6 +86,11 @@ function App() {
     }
   }, [])
   useEffect(() => {
+    const refresh = () => setDashboardRevision(value => value + 1)
+    window.addEventListener('hutec-demo-data-changed', refresh)
+    return () => window.removeEventListener('hutec-demo-data-changed', refresh)
+  }, [])
+  useEffect(() => {
     let active = true
     if (!session || session.mode === 'demo') return () => { active = false }
     void apiRequest<Session['user']>(session, '/api/auth/me')
@@ -108,6 +111,8 @@ function App() {
       })
     return () => { active = false }
   }, [session])
+  const inviteToken = new URLSearchParams(window.location.search).get('invite')
+  if (inviteToken) return <InviteAcceptancePage token={inviteToken} />
   if (!session) return <>
     <LoginPage onLogin={nextSession => { setAuthChecked(nextSession.mode === 'demo'); setSession(nextSession) }} />
     {import.meta.env.DEV && <button className="demo-login-button" onClick={() => {
@@ -121,6 +126,14 @@ function App() {
   const role = session.user.role
   const isFounder = role === 'Admin' || role === 'FounderGeneralManager'
   const canAccess = (module: NavKey) => isFounder || session.user.permissions.includes(modulePermissions[module])
+  const quotes = loadQuotes()
+  const projects = loadProjects()
+  const inventory = loadInventory()
+  const activeQuotes = quotes.filter(quote => !['Onaylandı', 'Reddedildi'].includes(quote.status))
+  const quoteVolume = quotes.filter(quote => quote.status !== 'Reddedildi').reduce((total, quote) => total + quote.total, 0)
+  const openProjects = projects.filter(project => (project.status ?? 'Keşif') !== 'Tamamlandı')
+  const lowStockItems = inventory.filter(item => item.onHand <= item.minimum)
+  const recentQuotes = quotes.slice(0, 4)
   const logout = () => { sessionStorage.removeItem('hutec_session'); setSession(null); setAuthChecked(true) }
   const selectWorkspace = (nextWorkspace: Workspace) => { setWorkspace(nextWorkspace); localStorage.setItem('hutec_active_workspace', JSON.stringify(nextWorkspace)); setWorkspaceOpen(false) }
   const addWorkspace = (nextWorkspace: Workspace) => { const next = [...workspaces, nextWorkspace]; setWorkspaces(next); localStorage.setItem('hutec_workspaces', JSON.stringify(next)); selectWorkspace(nextWorkspace); setWorkspaceModalOpen(false) }
@@ -143,9 +156,9 @@ function App() {
         {active === 'overview' && !canAccess('overview') && <section className="panel empty-module"><h2>Bu alana erişim izniniz yok</h2><p>Yöneticinizden çalışma alanı görüntüleme izni isteyin.</p></section>}
         {active === 'overview' && canAccess('overview') && <>
         <section className="page-heading"><div><p className="eyebrow">08 EYLÜL 2026, SALI</p><h1>Günaydın, Emre <span>↗</span></h1><p className="heading-sub">Bugün işlerinizi ve saha akışınızı tek yerden takip edin.</p></div>{canAccess('quotes') && <button className="primary-button" onClick={() => setComposer('quote')}><Plus size={17} /> Yeni teklif</button>}</section>
-        <section className="metric-grid"><Metric label="Aktif teklifler" value="24" delta="%12,5" context="geçen aya göre" icon={<ClipboardList size={19} />} tone="orange" /><Metric label="Teklif hacmi" value="₺1,84M" delta="%8,2" context="geçen aya göre" icon={<CircleDollarSign size={19} />} tone="blue" /><Metric label="Açık projeler" value="18" delta="3 yeni" context="bu hafta" icon={<Building2 size={19} />} tone="green" /><Metric label="Kritik stok" value="7" delta="Aksiyon gerekli" context="ürün" icon={<Package size={19} />} tone="red" /></section>
+        <section className="metric-grid"><Metric label="Aktif teklifler" value={String(activeQuotes.length)} delta={String(quotes.filter(quote => quote.status === 'Yönetim onayı bekliyor').length)} context="onay bekliyor" icon={<ClipboardList size={19} />} tone="orange" /><Metric label="Teklif hacmi" value={quoteVolume.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 })} delta={String(quotes.length)} context="toplam teklif" icon={<CircleDollarSign size={19} />} tone="blue" /><Metric label="Açık projeler" value={String(openProjects.length)} delta={String(projects.filter(project => project.status === 'Uygulamada').length)} context="uygulamada" icon={<Building2 size={19} />} tone="green" /><Metric label="Kritik stok" value={String(lowStockItems.length)} delta="Aksiyon gerekli" context="kalem" icon={<Package size={19} />} tone="red" /></section>
         <section className="dashboard-grid"><div className="panel activity-panel"><div className="panel-heading"><div><h2>Teklif akışı</h2><p>Son 30 günlük teklif performansı</p></div><button className="select-button">Son 30 gün <ChevronDown size={14} /></button></div><div className="chart-wrap"><div className="chart-y"><span>₺1M</span><span>₺750K</span><span>₺500K</span><span>₺250K</span><span>₺0</span></div><div className="chart"><div className="chart-grid"><i /><i /><i /><i /><i /></div><svg viewBox="0 0 700 230" preserveAspectRatio="none" role="img" aria-label="Teklif hacmi grafiği"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#e8a25c" stopOpacity=".28" /><stop offset="100%" stopColor="#e8a25c" stopOpacity="0" /></linearGradient></defs><path d="M0 183 C46 175 69 190 108 151 S171 147 200 128 S254 145 286 116 S338 109 374 128 S422 96 457 88 S510 112 543 69 S600 66 633 46 S677 53 700 19 L700 230 L0 230 Z" fill="url(#chartFill)" /><path d="M0 183 C46 175 69 190 108 151 S171 147 200 128 S254 145 286 116 S338 109 374 128 S422 96 457 88 S510 112 543 69 S600 66 633 46 S677 53 700 19" fill="none" stroke="#d7863f" strokeWidth="3" vectorEffect="non-scaling-stroke" /></svg><div className="chart-x"><span>10 Ağu</span><span>17 Ağu</span><span>24 Ağu</span><span>31 Ağu</span><span>07 Eyl</span></div></div></div></div><div className="panel goals-panel"><div className="panel-heading"><div><h2>Aylık hedef</h2><p>Eylül 2026</p></div><button className="more-button" aria-label="Daha fazla seçenek">•••</button></div><div className="donut"><div><strong>%72</strong><span>hedef tamamlandı</span></div></div><div className="goal-numbers"><div><strong>₺2,4M</strong><span>Hedef</span></div><div><strong>₺1,73M</strong><span>Gerçekleşen</span></div></div><button className="text-button">Hedef detaylarını gör <span>→</span></button></div></section>
-        <section className="panel quotes-panel"><div className="panel-heading"><div><h2>Son teklifler</h2><p>Ekibinizin son hareketleri</p></div><button className="outline-button">Tüm teklifleri gör <span>→</span></button></div><div className="table-scroll"><table><thead><tr><th>Teklif</th><th>Müşteri</th><th>Sistem</th><th>Tutar</th><th>Durum</th><th /></tr></thead><tbody>{recentQuotes.map(quote => <tr key={quote.id}><td><strong className="quote-id">{quote.id}</strong><small>Bugün, 09:42</small></td><td><strong>{quote.client}</strong></td><td>{quote.type}</td><td><strong>{quote.value}</strong></td><td><span className={`status ${quote.tone}`}><i />{quote.status}</span></td><td><button className="row-more" aria-label={`${quote.id} seçenekleri`}>•••</button></td></tr>)}</tbody></table></div></section>
+        <section className="panel quotes-panel"><div className="panel-heading"><div><h2>Son teklifler</h2><p>Kaydedilen teklif kayıtları</p></div><button className="outline-button" onClick={() => setActive('quotes')}>Tüm teklifleri gör <span>→</span></button></div>{recentQuotes.length ? <div className="table-scroll"><table><thead><tr><th>Teklif</th><th>Müşteri</th><th>Sistem</th><th>Tutar</th><th>Durum</th></tr></thead><tbody>{recentQuotes.map(quote => <tr key={quote.id}><td><strong className="quote-id">{quote.quoteNumber}</strong><small>{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</small></td><td><strong>{quote.customerName}</strong></td><td>{quote.productSystemName}</td><td><strong>{quote.total.toLocaleString('tr-TR', { style: 'currency', currency: quote.currency, maximumFractionDigits: 2 })}</strong></td><td><span className={`status ${quote.status === 'Onaylandı' ? 'green' : quote.status === 'Reddedildi' ? 'slate' : quote.status.includes('bekliyor') ? 'amber' : 'blue'}`}><i />{quote.status}</span></td></tr>)}</tbody></table></div> : <p className="empty-state">Henüz teklif yok. İlk teklifinizi oluşturarak başlayın.</p>}</section>
         </>}
       </div>
       {composer && <CreateFlow type={composer} onClose={() => setComposer(null)} />}
