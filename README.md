@@ -31,7 +31,7 @@ Ilk veritabani semasini olusturmak veya guncellemek icin:
 dotnet ef database update --project .\FlooringErp.Api --startup-project .\FlooringErp.Api
 ```
 
-Teklif onay esikleri `appsettings.json` icindeki `QuoteApproval` bolumunden degistirilebilir. Tenant kimligi request body veya header'dan alinmaz; JWT claim'inden gelir.
+Teklif onay esikleri `appsettings.json` icindeki `QuoteApproval` bolumunden degistirilebilir. Tenant kimligi request body veya header'dan alinmaz; JWT'de `tenant_id` claim'inden gelir.
 
 Frontend:
 

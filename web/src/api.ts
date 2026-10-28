@@ -1,6 +1,18 @@
 import type { Session } from './LoginPage'
 
-export const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:5220'
+// Vite environment variable validation and default for API URL
+const apiUrlEnv = import.meta.env.VITE_API_URL ?? 'http://localhost:5220'
+const apiUrlPattern = /^(http|https):\/\/[^ "]+$/
+if (!apiUrlPattern.test(apiUrlEnv))
+{
+    throw new Error(
+        'Invalid VITE_API_URL environment variable. ' +
+        'Expected format: http://host:port or https://host:port. ' +
+        'Example: $env:VITE_API_URL = "https://api.flooring-saas.com";'
+    )
+}
+
+export const apiUrl = apiUrlEnv
 
 type DemoRole = { id: string; code: string; name: string; permissions: string[]; isSystemRole: boolean }
 type DemoUser = { id: string; email: string; displayName: string; role: string; isActive: boolean; approvalAreaLimitM2: number; approvalForeignCurrencyLimit: number; inviteToken?: string; inviteExpiresAtUtc?: string; passwordHash?: string; inviteAcceptedAtUtc?: string }

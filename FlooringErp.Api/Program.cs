@@ -54,7 +54,47 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Role policy'si: FounderGeneralManager tüm yetkilere sahip
+    options.AddPolicy("Founder", policy =>
+        policy.RequireClaim(ClaimTypes.Role, "FounderGeneralManager", "Admin"));
+
+    // Permission claims: Gest granular izin kontrolü
+    options.AddPolicy("users.manage", policy =>
+        policy.RequireClaim("permission", "users.manage"));
+
+    options.AddPolicy("customers.read", policy =>
+        policy.RequireClaim("permission", "customers.read"));
+
+    options.AddPolicy("quotes.read", policy =>
+        policy.RequireClaim("permission", "quotes.read"));
+
+    options.AddPolicy("products.read", policy =>
+        policy.RequireClaim("permission", "products.read"));
+
+    options.AddPolicy("stock.read", policy =>
+        policy.RequireClaim("permission", "stock.read"));
+
+    options.AddPolicy("analytics.read", policy =>
+        policy.RequireClaim("permission", "analytics.read"));
+
+    options.AddPolicy("easyquote.use", policy =>
+        policy.RequireClaim("permission", "easyquote.use"));
+
+    options.AddPolicy("discounts.manage", policy =>
+        policy.RequireClaim("permission", "discounts.manage"));
+
+    options.AddPolicy("projects.read", policy =>
+        policy.RequireClaim("permission", "projects.read"));
+
+    options.AddPolicy("rates.read", policy =>
+        policy.RequireClaim("permission", "rates.read"));
+
+    options.AddPolicy("settings.manage", policy =>
+        policy.RequireClaim("permission", "settings.manage"));
+});
+
 builder.Services.AddCors(options => options.AddPolicy("LocalWeb", policy =>
     policy.WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
         .AllowAnyHeader()
@@ -71,7 +111,18 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-if (builder.Configuration.GetValue<bool>("Hutec:SeedDevelopmentData"))
+// Development seeder senaryosu: Production ortamında güvenli olmayan seed operasyonlarını engelle
+var environment = builder.Environment.EnvironmentName;
+var seedDevelopmentData = builder.Configuration.GetValue<bool>("Hutec:SeedDevelopmentData");
+if (seedDevelopmentData && environment != "Development")
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(
+        "Development seeding enabled but environment '{Environment}' is not Development. " +
+        "Seed operation disabled for security reasons.",
+        environment);
+}
+else if (seedDevelopmentData)
 {
     await DevelopmentSeeder.SeedAsync(app.Services, builder.Configuration);
 }

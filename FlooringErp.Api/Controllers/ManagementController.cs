@@ -14,17 +14,18 @@ namespace FlooringErp.Api.Controllers;
 public sealed class ManagementController(AppDbContext db) : ControllerBase
 {
     [HttpGet("roles")]
+    [Authorize(Policy = "users.manage")]
     public async Task<ActionResult<IReadOnlyList<RoleDefinitionResponse>>> Roles(CancellationToken cancellationToken)
     {
-        if (!CanManageUsers()) return Forbid();
+        // Policy bu alana erişimi denetliyor, doğrudan forbbiden'ı skip ediyoruz
         var roles = await db.RoleDefinitions.AsNoTracking().OrderBy(item => item.Name).ToListAsync(cancellationToken);
         return Ok(roles.Select(ToResponse).ToList());
     }
 
     [HttpGet("roles/{code}")]
+    [Authorize(Policy = "users.manage")]
     public async Task<ActionResult<RoleDefinitionResponse>> RoleByCode(string code, CancellationToken cancellationToken)
     {
-        if (!CanManageUsers()) return Forbid();
         var role = await db.RoleDefinitions.AsNoTracking().SingleOrDefaultAsync(item => item.Code == code, cancellationToken);
         return role is null ? NotFound() : Ok(ToResponse(role));
     }
@@ -52,17 +53,17 @@ public sealed class ManagementController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet("users")]
+    [Authorize(Policy = "users.manage")]
     public async Task<ActionResult<IReadOnlyList<ManagedUserResponse>>> Users(CancellationToken cancellationToken)
     {
-        if (!CanManageUsers()) return Forbid();
         var users = await db.Users.AsNoTracking().OrderBy(item => item.DisplayName).ToListAsync(cancellationToken);
         return Ok(users.Select(ToResponse).ToList());
     }
 
     [HttpPut("roles/{code}/permissions")]
+    [Authorize(Policy = "users.manage")]
     public async Task<ActionResult<RoleDefinitionResponse>> UpdateRolePermissions(string code, UpdateRolePermissionsRequest request, CancellationToken cancellationToken)
     {
-        if (!CanManageUsers()) return Forbid();
         var role = await db.RoleDefinitions.SingleOrDefaultAsync(item => item.Code == code, cancellationToken);
         if (role is null) return NotFound();
         if (role.Code == "FounderGeneralManager")
@@ -85,9 +86,9 @@ public sealed class ManagementController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("users/{id:guid}/role")]
+    [Authorize(Policy = "users.manage")]
     public async Task<ActionResult<ManagedUserResponse>> AssignRole(Guid id, AssignUserRoleRequest request, CancellationToken cancellationToken)
     {
-        if (!CanManageUsers()) return Forbid();
         var user = await db.Users.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (user is null) return NotFound();
         if (user.Role == "FounderGeneralManager")
@@ -109,9 +110,9 @@ public sealed class ManagementController(AppDbContext db) : ControllerBase
     }
 
     [HttpPut("users/{id:guid}/approval-limits")]
+    [Authorize(Policy = "users.manage")]
     public async Task<IActionResult> UpdateApprovalLimits(Guid id, UpdateApprovalLimitsRequest request, CancellationToken cancellationToken)
     {
-        if (!CanManageUsers()) return Forbid();
         if (request.AreaLimitM2 < 0 || request.ForeignCurrencyLimit < 0) return BadRequest(new { message = "Onay limitleri negatif olamaz." });
         var user = await db.Users.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (user is null) return NotFound();
