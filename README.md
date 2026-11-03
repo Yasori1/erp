@@ -15,21 +15,40 @@ Epoksi, endustriyel zemin ve kaplama uygulama firmalari icin cok kiracili ERP/Sa
 - Admin icin `POST /api/workspace/quotes/{id}/approve` onay endpoint'i
 - Responsive React + TypeScript operasyon paneli: teklif hacmi, aylik hedef, teklifler, CRM/stok navigasyonu
 
+## MySQL kurulumu ve baglanti
+
+Yerel makinede MySQL 8 servisi `localhost:3306` adresinde calisiyor olmali. MySQL Workbench'te yerel sunucuya yonetici hesabiyla baglanip SQL Editor'de uygulama veritabanini ve ayri bir uygulama kullanicisini olusturun:
+
+```sql
+CREATE DATABASE IF NOT EXISTS flooring_erp
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'flooring_app'@'localhost'
+  IDENTIFIED BY 'KENDI_GUCLU_SIFRENIZ';
+
+GRANT ALL PRIVILEGES ON flooring_erp.* TO 'flooring_app'@'localhost';
+```
+
+`KENDI_GUCLU_SIFRENIZ` degerini kendiniz belirleyin. Uygulama icin root hesabini kullanmayin; parolayi kaynak dosyalara veya git'e eklemeyin.
+
 ## Guvenli yerel calistirma
 
 Secret ve veritabani sifresi repoya yazilmaz. PowerShell ile API'yi baslatmadan once:
 
 ```powershell
 $env:Jwt__Secret = 'en-az-32-karakterlik-gelistirme-secret-degeri'
-$env:ConnectionStrings__Default = 'Server=localhost;Port=3306;Database=flooring_erp;User=root;Password=MYSQL_SIFRENIZ;'
-dotnet run --project .\FlooringErp.Api
+$env:ConnectionStrings__Default = 'Server=localhost;Port=3306;Database=flooring_erp;User Id=flooring_app;Password=KENDI_GUCLU_SIFRENIZ;'
 ```
 
-Ilk veritabani semasini olusturmak veya guncellemek icin:
+Ilk veritabani semasini olusturmak veya guncellemek icin yukaridaki iki ortam degiskenini ayni PowerShell penceresinde ayarlayin, sonra:
 
 ```powershell
 dotnet ef database update --project .\FlooringErp.Api --startup-project .\FlooringErp.Api
 ```
+
+Komut basarili olursa EF Core migration'lari MySQL'e uygulanir. Sonra ayni pencerede `dotnet run --project .\FlooringErp.Api` ile API'yi baslatin. Baglanti hatalarinda MySQL servis durumunu, `localhost:3306` portunu, veritabani/kullanici adini ve sifreyi kontrol edin.
+Bekleyen migration'lar, tenant/musteri/kullanici yabanci anahtar baglantilari dahil, bu komutla uygulanir; migration SQL'lerini Workbench'te elle calistirmaniz gerekmez.
 
 Teklif onay esikleri `appsettings.json` icindeki `QuoteApproval` bolumunden degistirilebilir. Tenant kimligi request body veya header'dan alinmaz; JWT'de `tenant_id` claim'inden gelir.
 

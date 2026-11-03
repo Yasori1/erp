@@ -34,7 +34,7 @@ export default function ModulePage({ module, onNavigate, onCreate, session }: { 
   if (module === 'audit') return <AuditLogPage />
   if (module === 'access') return <RoleManagementPage session={session} />
   if (module === 'discounts') return <DiscountsPage />
-  if (module === 'easyQuote') return <EasyQuotePage />
+  if (module === 'easyQuote') return <EasyQuotePage session={session} />
   if (module === 'customers') return <CustomerCrmPage />
   if (module === 'quotes') return <><QuotesWorkflowPage onCreate={onCreate} /><ApprovedQuotesToProjects /></>
   if (module === 'systems') return <SystemsPage />

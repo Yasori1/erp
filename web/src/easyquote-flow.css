@@ -1,0 +1,154 @@
+.customer-modal,
+.quote-confirm-modal {
+  width: min(620px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
+}
+
+.customer-actions,
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.customer-actions .action-button,
+.modal-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #e4e2dc;
+  border-radius: 6px;
+  color: #555950;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.customer-actions .action-button.active {
+  border-color: #789771;
+  color: #4b6845;
+  background: #f0f5ed;
+}
+
+.customer-list {
+  display: grid;
+  gap: 9px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.customer-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e8e6df;
+  border-radius: 7px;
+  color: #50544d;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.customer-card:hover {
+  border-color: #9ab093;
+  background: #fafbf8;
+}
+
+.customer-info,
+.customer-contact,
+.contact-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-contact,
+.contact-info {
+  flex-wrap: wrap;
+  margin-top: 6px;
+  color: #85877f;
+  font-size: 10px;
+}
+
+.customer-summary,
+.summary-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.quote-summary,
+.confirm-section {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #e9e7e0;
+  border-radius: 7px;
+}
+
+.quote-summary h3,
+.confirm-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+.quote-summary .price-range {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+  font-weight: 700;
+}
+
+.quote-confirm-modal .heading-sub {
+  margin: 9px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.quote-confirm-modal .modal-actions {
+  justify-content: flex-end;
+  margin: 18px 0 0;
+}
+
+.quote-confirm-modal .modal-actions .primary-button {
+  border-color: #2d3b2d;
+  color: #fff;
+  background: #2d3b2d;
+}
+
+.quote-confirm-modal .modal-actions .secondary-button {
+  color: #555950;
+  background: #fff;
+}
+
+.modal button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+@media (max-width: 560px) {
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .customer-modal,
+  .quote-confirm-modal {
+    padding: 16px;
+  }
+
+  .customer-actions {
+    flex-direction: column;
+  }
+}

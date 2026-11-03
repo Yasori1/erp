@@ -18,6 +18,8 @@ type DemoRole = { id: string; code: string; name: string; permissions: string[];
 type DemoUser = { id: string; email: string; displayName: string; role: string; isActive: boolean; approvalAreaLimitM2: number; approvalForeignCurrencyLimit: number; inviteToken?: string; inviteExpiresAtUtc?: string; passwordHash?: string; inviteAcceptedAtUtc?: string }
 const roleStorageKey = 'hutec_frontend_demo_roles'
 const userStorageKey = 'hutec_frontend_demo_users'
+const customerStorageKey = 'hutec_frontend_demo_customers'
+const quoteStorageKey = 'hutec_frontend_demo_quotes'
 const demoPermissions = ['workspace.read', 'customers.read', 'customers.write', 'projects.read', 'quotes.read', 'quotes.read.all', 'quotes.write', 'quotes.approve', 'products.read', 'products.write', 'stock.read', 'stock.write', 'rates.read', 'analytics.read', 'easyquote.use', 'discounts.manage', 'settings.manage', 'users.manage']
 const initialDemoRoles: DemoRole[] = [
   { id: 'demo-role-owner', code: 'FounderGeneralManager', name: 'Kurucu / Genel Müdür', permissions: demoPermissions, isSystemRole: true },
@@ -110,6 +112,43 @@ async function demoRequest<T>(session: Session, path: string, init: RequestInit)
   const users = readDemoList(userStorageKey, initialDemoUsers)
 
   if (path === '/api/auth/me' && method === 'GET') return session.user as T
+  if (path === '/api/workspace/customers' && method === 'GET') return readDemoList(customerStorageKey, []) as T
+  if (path === '/api/workspace/customers' && method === 'POST') {
+    const customer = {
+      id: crypto.randomUUID(),
+      companyName: String(payload.companyName ?? ''),
+      contactName: String(payload.contactName ?? ''),
+      email: String(payload.email ?? ''),
+      phone: String(payload.phone ?? ''),
+      status: String(payload.status ?? 'Lead'),
+      tenantId: 'demo-tenant',
+      createdAtUtc: new Date().toISOString(),
+    }
+    if (!customer.companyName.trim()) throw new Error('Firma adı zorunludur.')
+    const customers = readDemoList<typeof customer>(customerStorageKey, [])
+    writeDemoList(customerStorageKey, [customer, ...customers])
+    return customer as T
+  }
+  if (path === '/api/workspace/quotes' && method === 'POST') {
+    const quote = {
+      id: crypto.randomUUID(),
+      quoteNumber: String(payload.quoteNumber ?? ''),
+      areaM2: Number(payload.areaM2 ?? 0),
+      total: Number(payload.total ?? 0),
+      currency: String(payload.currency ?? 'TRY'),
+      assignedToUserId: session.user.id,
+      requiresManagementApproval: false,
+      approvalStatus: 'NotRequired',
+      status: 'Draft',
+      customerId: payload.customerId ?? null,
+      productSystemName: String(payload.productSystemName ?? ''),
+      createdAtUtc: new Date().toISOString(),
+    }
+    if (!quote.quoteNumber || quote.areaM2 <= 0) throw new Error('Teklif numarası ve geçerli uygulama alanı zorunludur.')
+    const quotes = readDemoList<typeof quote>(quoteStorageKey, [])
+    writeDemoList(quoteStorageKey, [quote, ...quotes])
+    return quote as T
+  }
   if (path === '/api/management/roles' && method === 'GET') return roles as T
   if (path === '/api/management/users' && method === 'GET') return users as T
 
