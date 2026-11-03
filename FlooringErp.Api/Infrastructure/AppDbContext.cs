@@ -22,6 +22,59 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
         modelBuilder.Entity<AppUser>().HasIndex(item => new { item.TenantId, item.Email }).IsUnique();
         modelBuilder.Entity<Quote>().HasIndex(item => new { item.TenantId, item.QuoteNumber }).IsUnique();
 
+        modelBuilder.Entity<AppUser>().HasAlternateKey(item => new { item.TenantId, item.Id });
+        modelBuilder.Entity<Customer>().HasAlternateKey(item => new { item.TenantId, item.Id });
+
+        modelBuilder.Entity<AppUser>()
+            .HasOne(item => item.Tenant)
+            .WithMany()
+            .HasForeignKey(item => item.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<RoleDefinition>()
+            .HasOne(item => item.Tenant)
+            .WithMany()
+            .HasForeignKey(item => item.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Customer>()
+            .HasOne(item => item.Tenant)
+            .WithMany()
+            .HasForeignKey(item => item.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Project>()
+            .HasOne(item => item.Tenant)
+            .WithMany()
+            .HasForeignKey(item => item.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ProductSystem>()
+            .HasOne(item => item.Tenant)
+            .WithMany()
+            .HasForeignKey(item => item.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Quote>()
+            .HasOne(item => item.Tenant)
+            .WithMany()
+            .HasForeignKey(item => item.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Project>()
+            .HasOne(item => item.Customer)
+            .WithMany(item => item.Projects)
+            .HasForeignKey(item => new { item.TenantId, item.CustomerId })
+            .HasPrincipalKey(item => new { item.TenantId, item.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Quote>()
+            .HasOne(item => item.Customer)
+            .WithMany(item => item.Quotes)
+            .HasForeignKey(item => new { item.TenantId, item.CustomerId })
+            .HasPrincipalKey(item => new { item.TenantId, item.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Quote>()
+            .HasOne(item => item.AssignedToUser)
+            .WithMany()
+            .HasForeignKey(item => new { item.TenantId, item.AssignedToUserId })
+            .HasPrincipalKey(item => new { item.TenantId, item.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<AppUser>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
         modelBuilder.Entity<RoleDefinition>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
         modelBuilder.Entity<Customer>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
@@ -44,12 +97,21 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
     private void StampTenantEntities()
     {
+        var addedTenantEntities = ChangeTracker.Entries<TenantEntity>()
+            .Where(item => item.State == EntityState.Added)
+            .ToArray();
+
+        if (addedTenantEntities.Length == 0)
+        {
+            return;
+        }
+
         if (!tenantContext.HasTenant)
         {
             throw new InvalidOperationException("Tenant context is required for tenant-owned data.");
         }
 
-        foreach (var entry in ChangeTracker.Entries<TenantEntity>().Where(item => item.State == EntityState.Added))
+        foreach (var entry in addedTenantEntities)
         {
             entry.Entity.TenantId = tenantContext.TenantId;
         }

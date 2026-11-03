@@ -142,6 +142,8 @@ namespace FlooringErp.Api.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("ProductSystems");
                 });
 
@@ -172,6 +174,8 @@ namespace FlooringErp.Api.Infrastructure.Migrations
                         .HasColumnType("char(36)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "CustomerId");
 
                     b.ToTable("Projects");
                 });
@@ -231,6 +235,10 @@ namespace FlooringErp.Api.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId", "AssignedToUserId");
+
+                    b.HasIndex("TenantId", "CustomerId");
+
                     b.HasIndex("TenantId", "QuoteNumber")
                         .IsUnique();
 
@@ -266,6 +274,8 @@ namespace FlooringErp.Api.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("RoleDefinitions");
                 });
 
@@ -292,6 +302,104 @@ namespace FlooringErp.Api.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Tenants");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.AppUser", b =>
+                {
+                    b.HasOne("FlooringErp.Api.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.Customer", b =>
+                {
+                    b.HasOne("FlooringErp.Api.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.ProductSystem", b =>
+                {
+                    b.HasOne("FlooringErp.Api.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.Project", b =>
+                {
+                    b.HasOne("FlooringErp.Api.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FlooringErp.Api.Domain.Customer", "Customer")
+                        .WithMany("Projects")
+                        .HasForeignKey("TenantId", "CustomerId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.Quote", b =>
+                {
+                    b.HasOne("FlooringErp.Api.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FlooringErp.Api.Domain.AppUser", "AssignedToUser")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "AssignedToUserId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("FlooringErp.Api.Domain.Customer", "Customer")
+                        .WithMany("Quotes")
+                        .HasForeignKey("TenantId", "CustomerId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.RoleDefinition", b =>
+                {
+                    b.HasOne("FlooringErp.Api.Domain.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.Customer", b =>
+                {
+                    b.Navigation("Projects");
+
+                    b.Navigation("Quotes");
                 });
 #pragma warning restore 612, 618
         }

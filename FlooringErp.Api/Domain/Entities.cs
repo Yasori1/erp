@@ -27,6 +27,7 @@ public sealed class AppUser : TenantEntity
     public string Permissions { get; set; } = string.Empty;
     public decimal ApprovalAreaLimitM2 { get; set; } = 1000;
     public decimal ApprovalForeignCurrencyLimit { get; set; } = 1000;
+    public Tenant? Tenant { get; set; }
 }
 
 public sealed class RoleDefinition : TenantEntity
@@ -35,6 +36,7 @@ public sealed class RoleDefinition : TenantEntity
     public string Name { get; set; } = string.Empty;
     public string Permissions { get; set; } = string.Empty;
     public bool IsSystemRole { get; set; } = true;
+    public Tenant? Tenant { get; set; }
 }
 
 public sealed class Customer : TenantEntity
@@ -44,6 +46,9 @@ public sealed class Customer : TenantEntity
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string Status { get; set; } = "Lead";
+    public Tenant? Tenant { get; set; }
+    public ICollection<Project> Projects { get; set; } = new List<Project>();
+    public ICollection<Quote> Quotes { get; set; } = new List<Quote>();
 }
 
 public sealed class Project : TenantEntity
@@ -52,6 +57,8 @@ public sealed class Project : TenantEntity
     public Guid CustomerId { get; set; }
     public decimal AreaM2 { get; set; }
     public string Status { get; set; } = "Discovery";
+    public Tenant? Tenant { get; set; }
+    public Customer Customer { get; set; } = null!;
 }
 
 public sealed class ProductSystem : TenantEntity
@@ -60,6 +67,7 @@ public sealed class ProductSystem : TenantEntity
     public string LayersJson { get; set; } = "[]";
     public int Version { get; set; } = 1;
     public bool IsActive { get; set; } = true;
+    public Tenant? Tenant { get; set; }
 }
 
 public sealed class Quote : TenantEntity
@@ -76,4 +84,7 @@ public sealed class Quote : TenantEntity
     public Guid? AssignedToUserId { get; set; }
     public bool RequiresManagementApproval { get; set; }
     public string ApprovalStatus { get; set; } = "NotRequired";
+    public Tenant? Tenant { get; set; }
+    public Customer? Customer { get; set; }
+    public AppUser? AssignedToUser { get; set; }
 }
