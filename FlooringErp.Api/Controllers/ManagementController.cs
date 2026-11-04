@@ -13,6 +13,79 @@ namespace FlooringErp.Api.Controllers;
 [Route("api/management")]
 public sealed class ManagementController(AppDbContext db) : ControllerBase
 {
+    [HttpGet("account-change-requests")]
+    public async Task<ActionResult<IReadOnlyList<AccountChangeRequestResponse>>> AccountChangeRequests(CancellationToken cancellationToken)
+    {
+        if (!IsManagementUser()) return Forbid();
+
+        var requests = await db.PendingAccountChanges.AsNoTracking()
+            .Where(item => item.Status == "Pending")
+            .OrderBy(item => item.CreatedAtUtc)
+            .Select(item => new AccountChangeRequestResponse(
+                item.Id,
+                item.UserId,
+                item.User.Email,
+                item.User.DisplayName,
+                item.RequestedEmail,
+                item.RequestedDisplayName,
+                item.RequestedPasswordHash != null,
+                item.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+        return Ok(requests);
+    }
+
+    [HttpPost("account-change-requests/{id:guid}/approve")]
+    public async Task<IActionResult> ApproveAccountChange(Guid id, CancellationToken cancellationToken)
+    {
+        if (!IsManagementUser()) return Forbid();
+
+        var request = await db.PendingAccountChanges
+            .Include(item => item.User)
+            .SingleOrDefaultAsync(item => item.Id == id && item.Status == "Pending", cancellationToken);
+        if (request is null) return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(request.RequestedEmail))
+        {
+            var emailInUse = await db.Users.AnyAsync(
+                item => item.Id != request.UserId && item.Email == request.RequestedEmail,
+                cancellationToken);
+            if (emailInUse) return Conflict(new { message = "Talep edilen e-posta başka bir hesapta kullanılıyor." });
+            request.User.Email = request.RequestedEmail;
+        }
+
+        if (request.RequestedDisplayName is not null)
+        {
+            request.User.DisplayName = request.RequestedDisplayName;
+        }
+
+        if (request.RequestedPasswordHash is not null)
+        {
+            request.User.PasswordHash = request.RequestedPasswordHash;
+        }
+
+        request.Status = "Approved";
+        request.ReviewedAtUtc = DateTime.UtcNow;
+        request.ReviewedByUserId = CurrentUserId();
+        await db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("account-change-requests/{id:guid}/reject")]
+    public async Task<IActionResult> RejectAccountChange(Guid id, CancellationToken cancellationToken)
+    {
+        if (!IsManagementUser()) return Forbid();
+
+        var request = await db.PendingAccountChanges
+            .SingleOrDefaultAsync(item => item.Id == id && item.Status == "Pending", cancellationToken);
+        if (request is null) return NotFound();
+
+        request.Status = "Rejected";
+        request.ReviewedAtUtc = DateTime.UtcNow;
+        request.ReviewedByUserId = CurrentUserId();
+        await db.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("roles")]
     [Authorize(Policy = "users.manage")]
     public async Task<ActionResult<IReadOnlyList<RoleDefinitionResponse>>> Roles(CancellationToken cancellationToken)
@@ -124,6 +197,13 @@ public sealed class ManagementController(AppDbContext db) : ControllerBase
 
     private bool CanManageUsers() => User.IsInRole("Admin") || User.IsInRole("FounderGeneralManager") ||
         User.Claims.Any(item => item.Type == "permission" && item.Value == "users.manage");
+
+    private bool IsManagementUser() => CanManageUsers();
+
+    private Guid? CurrentUserId() =>
+        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub"), out var id)
+            ? id
+            : null;
 
     private static bool HasKnownPermissions(IEnumerable<string> permissions) =>
         permissions.All(ManagementPermissionCatalog.All.Contains);

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight, Box, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react'
-import { apiUrl, authenticateDemoUser } from './api'
+import { apiUrl } from './api'
 import './auth.css'
 
 export type Session = { accessToken: string; mode?: 'api' | 'demo'; user: { id: string; email: string; displayName: string; role: string; roleName: string; permissions: string[] } }
@@ -18,12 +18,6 @@ export default function LoginPage({ onLogin }: { onLogin: (session: Session) => 
     setLoading(true)
     setError('')
     try {
-      const demoSession = import.meta.env.DEV ? await authenticateDemoUser(tenantSlug, email, password) : null
-      if (demoSession) {
-        sessionStorage.setItem('hutec_session', JSON.stringify(demoSession))
-        onLogin(demoSession)
-        return
-      }
       const response = await fetch(`${apiUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -36,7 +36,7 @@ export default function ModulePage({ module, onNavigate, onCreate, session }: { 
   if (module === 'discounts') return <DiscountsPage />
   if (module === 'easyQuote') return <EasyQuotePage session={session} />
   if (module === 'customers') return <CustomerCrmPage />
-  if (module === 'quotes') return <><QuotesWorkflowPage onCreate={onCreate} /><ApprovedQuotesToProjects /></>
+  if (module === 'quotes') return <><QuotesWorkflowPage onCreate={onCreate} session={session} /><ApprovedQuotesToProjects /></>
   if (module === 'systems') return <SystemsPage />
   if (module === 'stock') return <InventoryPage />
   if (module === 'projects') return <ProjectsWorkflowPage onCreate={onCreate} />

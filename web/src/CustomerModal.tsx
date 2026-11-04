@@ -154,39 +154,43 @@ export default function CustomerModal({ session, onClose, onConfirm }: {
             </label>
 
             <label>
-              İletişim kişisi
+              İletişim kişisi<span className="required">*</span>
               <input
                 type="text"
                 value={contactName}
                 onChange={event => setContactName(event.target.value)}
                 placeholder="Yetkili kişi"
+                required
                 maxLength={200}
               />
             </label>
 
             <label>
-              E-posta
+              E-posta<span className="required">*</span>
               <input
                 type="email"
                 value={email}
                 onChange={event => setEmail(event.target.value)}
                 placeholder="ornek@firma.com"
+                required
                 maxLength={254}
               />
             </label>
 
             <label>
-              Telefon
+              Telefon<span className="required">*</span>
               <input
                 type="tel"
+                inputMode="numeric"
                 value={phone}
                 onChange={event => setPhone(event.target.value)}
                 placeholder="+90 555 123 45 67"
+                required
                 maxLength={50}
               />
             </label>
 
-            <button className="secondary-button modal-submit" type="submit" disabled={saving || !name.trim()}>
+            <button className="primary-button customer-submit-button" type="submit" disabled={saving || !name.trim()}>
               <Plus size={16} />
               {saving ? 'Kaydediliyor...' : 'Firmayı kaydet ve seç'}
             </button>

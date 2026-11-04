@@ -57,29 +57,121 @@ public sealed class AuthController(
     [HttpGet("me")]
     public async Task<ActionResult<UserSummary>> Me(CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        if (!Guid.TryParse(userId, out var id))
-        {
-            return Unauthorized();
-        }
-
-        var user = await db.Users.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        var user = await CurrentUserAsync(cancellationToken);
         if (user is null)
         {
             return Unauthorized();
         }
 
+        return Ok(await ToUserSummaryAsync(user, cancellationToken));
+    }
+
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<ActionResult<AccountChangeSubmissionResponse>> UpdateProfile(UpdateProfileRequest request, CancellationToken cancellationToken)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+        if (user is null) return Unauthorized();
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (await EmailInUseAsync(user, email, cancellationToken))
+        {
+            return Conflict(new { message = "Bu e-posta adresi başka bir hesapta kullanılıyor." });
+        }
+
+        if (!IsManagementUser())
+        {
+            if (await HasPendingRequestAsync(user.Id, cancellationToken))
+            {
+                return Conflict(new { message = "Bekleyen hesap değişikliği talebiniz sonuçlanmadan yeni talep oluşturamazsınız." });
+            }
+
+            db.PendingAccountChanges.Add(new FlooringErp.Api.Domain.PendingAccountChange
+            {
+                UserId = user.Id,
+                RequestedEmail = email,
+                RequestedDisplayName = request.DisplayName.Trim()
+            });
+            await db.SaveChangesAsync(cancellationToken);
+            return Accepted(new AccountChangeSubmissionResponse(null, true, "Profil değişikliği yönetici onayına gönderildi."));
+        }
+
+        user.Email = email;
+        user.DisplayName = request.DisplayName.Trim();
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new AccountChangeSubmissionResponse(await ToUserSummaryAsync(user, cancellationToken), false, "Profil bilgileri güncellendi."));
+    }
+
+    [Authorize]
+    [HttpPut("change-password")]
+    public async Task<ActionResult<AccountChangeSubmissionResponse>> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var user = await CurrentUserAsync(cancellationToken);
+        if (user is null) return Unauthorized();
+
+        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed)
+        {
+            return BadRequest(new { message = "Mevcut şifre yanlış." });
+        }
+
+        if (request.CurrentPassword == request.NewPassword)
+        {
+            return BadRequest(new { message = "Yeni şifre mevcut şifreden farklı olmalıdır." });
+        }
+
+        var newPasswordHash = passwordHasher.HashPassword(user, request.NewPassword);
+        if (!IsManagementUser())
+        {
+            if (await HasPendingRequestAsync(user.Id, cancellationToken))
+            {
+                return Conflict(new { message = "Bekleyen hesap değişikliği talebiniz sonuçlanmadan yeni talep oluşturamazsınız." });
+            }
+
+            db.PendingAccountChanges.Add(new FlooringErp.Api.Domain.PendingAccountChange
+            {
+                UserId = user.Id,
+                RequestedPasswordHash = newPasswordHash
+            });
+            await db.SaveChangesAsync(cancellationToken);
+            return Accepted(new AccountChangeSubmissionResponse(null, true, "Şifre değişikliği yönetici onayına gönderildi."));
+        }
+
+        user.PasswordHash = newPasswordHash;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new AccountChangeSubmissionResponse(null, false, "Şifreniz değiştirildi."));
+    }
+
+    private async Task<FlooringErp.Api.Domain.AppUser?> CurrentUserAsync(CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        return Guid.TryParse(userId, out var id)
+            ? await db.Users.SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
+            : null;
+    }
+
+    private async Task<UserSummary> ToUserSummaryAsync(FlooringErp.Api.Domain.AppUser user, CancellationToken cancellationToken)
+    {
         var roleName = await db.RoleDefinitions.AsNoTracking()
             .Where(item => item.Code == user.Role)
             .Select(item => item.Name)
             .SingleOrDefaultAsync(cancellationToken) ?? user.Role;
 
-        return Ok(new UserSummary(
+        return new UserSummary(
             user.Id,
             user.Email,
             user.DisplayName,
             user.Role,
             roleName,
-            user.Permissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
+            user.Permissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     }
+
+    private bool IsManagementUser() =>
+        User.IsInRole("Admin") || User.IsInRole("FounderGeneralManager") ||
+        User.Claims.Any(item => item.Type == "permission" && item.Value == "users.manage");
+
+    private Task<bool> EmailInUseAsync(FlooringErp.Api.Domain.AppUser user, string email, CancellationToken cancellationToken) =>
+        db.Users.AnyAsync(item => item.Id != user.Id && item.Email == email, cancellationToken);
+
+    private Task<bool> HasPendingRequestAsync(Guid userId, CancellationToken cancellationToken) =>
+        db.PendingAccountChanges.AnyAsync(item => item.UserId == userId && item.Status == "Pending", cancellationToken);
 }

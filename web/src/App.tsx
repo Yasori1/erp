@@ -3,14 +3,14 @@ import { Activity, ArrowRight, BarChart3, Bell, Box, Building2, Calculator, Chev
 import './App.css'
 import './flow.css'
 import './popover.css'
-import './demo-mode.css'
 import ModulePage, { type ModuleKey } from './ModulePage'
 import CreateFlow from './CreateFlow'
 import ResourceActionModal, { type ResourceAction } from './ResourceActionModal'
 import InviteAcceptancePage from './InviteAcceptancePage'
 import LoginPage, { type Session } from './LoginPage'
 import WorkspaceModal, { type Workspace } from './WorkspaceModal'
-import { apiRequest, createDemoSession } from './api'
+import ProfileSettingsModal from './ProfileSettingsModal'
+import { apiRequest } from './api'
 import { loadInventory, loadProjects, loadQuotes } from './commercialData'
 
 type NavKey = 'overview' | ModuleKey
@@ -48,13 +48,18 @@ function App() {
     const stored = sessionStorage.getItem('hutec_session')
     if (!stored) return null
     try {
-      return JSON.parse(stored) as Session
+      const parsed = JSON.parse(stored) as Session
+      if (parsed.mode === 'demo') {
+        sessionStorage.removeItem('hutec_session')
+        return null
+      }
+      return parsed
     } catch {
       sessionStorage.removeItem('hutec_session')
       return null
     }
   })
-  const [authChecked, setAuthChecked] = useState(() => !session || session.mode === 'demo')
+  const [authChecked, setAuthChecked] = useState(() => !session)
   const [, setDashboardRevision] = useState(0)
   const [composer, setComposer] = useState<'quote' | 'project' | null>(null)
   const [resourceAction, setResourceAction] = useState<ResourceAction | null>(null)
@@ -63,6 +68,7 @@ function App() {
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [profileSettings, setProfileSettings] = useState<'profile' | 'account' | null>(null)
   const [workspaceModalOpen, setWorkspaceModalOpen] = useState(false)
   const [workspaces, setWorkspaces] = useState<Workspace[]>(() => JSON.parse(localStorage.getItem('hutec_workspaces') ?? '[{"id":"artemis-proje","name":"Artemis Proje","slug":"artemis-proje","subtitle":"Üretim & uygulama","initials":"AP"}]') as Workspace[])
   const [workspace, setWorkspace] = useState<Workspace>(() => JSON.parse(localStorage.getItem('hutec_active_workspace') ?? '{"id":"artemis-proje","name":"Artemis Proje","slug":"artemis-proje","subtitle":"Üretim & uygulama","initials":"AP"}') as Workspace)
@@ -91,8 +97,17 @@ function App() {
     return () => window.removeEventListener('hutec-demo-data-changed', refresh)
   }, [])
   useEffect(() => {
+    const expireSession = () => {
+      sessionStorage.removeItem('hutec_session')
+      setSession(null)
+      setAuthChecked(true)
+    }
+    window.addEventListener('hutec-session-expired', expireSession)
+    return () => window.removeEventListener('hutec-session-expired', expireSession)
+  }, [])
+  useEffect(() => {
     let active = true
-    if (!session || session.mode === 'demo') return () => { active = false }
+    if (!session) return () => { active = false }
     void apiRequest<Session['user']>(session, '/api/auth/me')
       .then(user => {
         if (!active) return
@@ -114,13 +129,7 @@ function App() {
   const inviteToken = new URLSearchParams(window.location.search).get('invite')
   if (inviteToken) return <InviteAcceptancePage token={inviteToken} />
   if (!session) return <>
-    <LoginPage onLogin={nextSession => { setAuthChecked(nextSession.mode === 'demo'); setSession(nextSession) }} />
-    {import.meta.env.DEV && <button className="demo-login-button" onClick={() => {
-      const demoSession = createDemoSession()
-      sessionStorage.setItem('hutec_session', JSON.stringify(demoSession))
-      setAuthChecked(true)
-      setSession(demoSession)
-    }}>Demo patron önizlemesi</button>}
+    <LoginPage onLogin={nextSession => { setAuthChecked(false); setSession(nextSession) }} />
   </>
   if (!authChecked) return <main className="auth-shell"><section className="auth-panel"><p>Güvenli oturum doğrulanıyor...</p></section></main>
   const role = session.user.role
@@ -135,22 +144,26 @@ function App() {
   const lowStockItems = inventory.filter(item => item.onHand <= item.minimum)
   const recentQuotes = quotes.slice(0, 4)
   const logout = () => { sessionStorage.removeItem('hutec_session'); setSession(null); setAuthChecked(true) }
+  const updateSessionUser = (user: Session['user']) => {
+    const updatedSession = { ...session, user }
+    sessionStorage.setItem('hutec_session', JSON.stringify(updatedSession))
+    setSession(updatedSession)
+  }
   const selectWorkspace = (nextWorkspace: Workspace) => { setWorkspace(nextWorkspace); localStorage.setItem('hutec_active_workspace', JSON.stringify(nextWorkspace)); setWorkspaceOpen(false) }
   const addWorkspace = (nextWorkspace: Workspace) => { const next = [...workspaces, nextWorkspace]; setWorkspaces(next); localStorage.setItem('hutec_workspaces', JSON.stringify(next)); selectWorkspace(nextWorkspace); setWorkspaceModalOpen(false) }
   return <div className="app-shell">
-    {session.mode === 'demo' && <div className="demo-mode-banner">DEMO ÖNİZLEME · Veriler yalnızca bu tarayıcıda saklanır; API’ye gönderilmez.</div>}
     <aside className={mobileNav ? 'sidebar sidebar-open' : 'sidebar'}>
       <div className="brand-row"><div className="brand-mark"><Box size={21} strokeWidth={2.5} /></div><div><strong>Hutec</strong><span>ERP / Zemin sistemleri</span></div><button className="icon-button mobile-close" onClick={() => setMobileNav(false)} aria-label="Menüyü kapat"><X size={18} /></button></div>
       <div className="workspace-switcher" role="button" tabIndex={0} onClick={() => { setWorkspaceOpen(value => !value); setNotificationsOpen(false); setProfileOpen(false) }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') setWorkspaceOpen(value => !value) }}><div className="company-avatar">{workspace.initials}</div><div><strong>{workspace.name}</strong><span>{workspace.subtitle}</span></div><ChevronDown size={15} />{workspaceOpen && <div className="popover workspace-popover"><div className="popover-label">ÇALIŞMA ALANLARI</div>{workspaces.map(item => <button className={item.id === workspace.id ? 'workspace-option active' : 'workspace-option'} key={item.id} onClick={event => { event.stopPropagation(); selectWorkspace(item) }}><span className="company-avatar">{item.initials}</span><span><strong>{item.name}</strong><small>{item.id === workspace.id ? 'Aktif çalışma alanı' : item.subtitle}</small></span>{item.id === workspace.id && <ShieldCheck size={14} />}</button>)}<button className="popover-action" onClick={event => { event.stopPropagation(); setWorkspaceModalOpen(true); setWorkspaceOpen(false) }}><Plus size={14} /> Yeni firma ekle</button></div>}</div>
       <div className="role-badge"><ShieldCheck size={14} /><span>{roleLabels[role] ?? session.user.roleName}</span></div>
       <div className="nav-label">ÇALIŞMA ALANI</div>
       <nav>{navItems.filter(item => canAccess(item.key)).map(({ key, label, icon: Icon }) => <button key={key} className={active === key ? 'nav-item active' : 'nav-item'} onClick={() => { setActive(key); setMobileNav(false) }}><Icon size={18} /><span>{label}</span>{key === 'quotes' && <em>4</em>}</button>)}</nav>
-      <div className="nav-label secondary-label">YÖNETİM</div>
+      {(isFounder || session.user.permissions.includes('users.manage')) && <div className="nav-label secondary-label">YÖNETİM</div>}
       <nav>{canAccess('projects') && <button className={active === 'projects' ? 'nav-item active' : 'nav-item'} onClick={() => { setActive('projects'); setMobileNav(false) }}><Building2 size={18} /><span>Projeler</span></button>}{canAccess('rates') && <button className={active === 'rates' ? 'nav-item active' : 'nav-item'} onClick={() => { setActive('rates'); setMobileNav(false) }}><CircleDollarSign size={18} /><span>Döviz kurları</span></button>}{canAccess('settings') && <button className={active === 'settings' ? 'nav-item active' : 'nav-item'} onClick={() => { setActive('settings'); setMobileNav(false) }}><Settings2 size={18} /><span>Ayarlar</span></button>}</nav>
-      <div className="sidebar-footer"><div className="secure-badge"><ShieldCheck size={17} /><span><strong>Verileriniz izole</strong><small>Tenant güvenliği aktif</small></span></div><div className="profile-wrap"><button className="profile" onClick={() => { setProfileOpen(value => !value); setWorkspaceOpen(false); setNotificationsOpen(false) }}><div className="profile-avatar">{session.user.displayName.slice(0, 2).toUpperCase()}</div><div><strong>{session.user.displayName}</strong><small>{roleLabels[role] ?? session.user.roleName}</small></div><ChevronDown size={15} /></button>{profileOpen && <div className="popover profile-popover"><button className="popover-action"><Users size={14} /> Profil bilgileri</button><button className="popover-action"><Settings2 size={14} /> Hesap ayarları</button><button className="popover-action danger" onClick={logout}><LogOut size={14} /> Güvenli çıkış</button></div>}</div></div>
+      <div className="sidebar-footer"><div className="secure-badge"><ShieldCheck size={17} /><span><strong>Verileriniz izole</strong><small>Tenant güvenliği aktif</small></span></div><div className="profile-wrap"><button className="profile" onClick={() => { setProfileOpen(value => !value); setWorkspaceOpen(false); setNotificationsOpen(false) }}><div className="profile-avatar">{session.user.displayName.slice(0, 2).toUpperCase()}</div><div><strong>{session.user.displayName}</strong><small>{roleLabels[role] ?? session.user.roleName}</small></div><ChevronDown size={15} /></button>{profileOpen && <div className="popover profile-popover"><button className="popover-action" onClick={() => { setProfileOpen(false); setProfileSettings('profile') }}><Users size={14} /> Profil bilgileri</button><button className="popover-action" onClick={() => { setProfileOpen(false); setProfileSettings('account') }}><Settings2 size={14} /> Hesap ayarları</button><button className="popover-action danger" onClick={logout}><LogOut size={14} /> Güvenli çıkış</button></div>}</div></div>
     </aside>
     <main className="main-content">
-      <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setMobileNav(true)} aria-label="Menüyü aç"><Menu size={21} /></button><div className="crumb"><span>Artemis Proje</span><b>/</b><strong>{navItems.find(item => item.key === active)?.label}</strong></div><div className="top-actions"><div className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Ara..." /></div><div className="notification-wrap"><button className="icon-button" onClick={() => { setNotificationsOpen(value => !value); setWorkspaceOpen(false); setProfileOpen(false) }} aria-label="Bildirimler"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="notification-head"><strong>Bildirimler</strong><span>3 yeni</span></div><div className="notification-item"><span className="notification-dot amber" /><div><strong>Teklif onayı bekliyor</strong><small>TK-24091 · 4 dk önce</small></div></div><div className="notification-item"><span className="notification-dot blue" /><div><strong>Stok seviyesi kritik</strong><small>PU sertleştirici B · 1 saat önce</small></div></div><div className="notification-item"><span className="notification-dot green" /><div><strong>Yeni müşteri eklendi</strong><small>Mavi Makine · bugün</small></div></div><button className="popover-action">Tüm bildirimleri gör <ArrowRight size={14} /></button></div>}</div><button className="top-avatar" onClick={() => { setProfileOpen(value => !value); setWorkspaceOpen(false); setNotificationsOpen(false) }}>EY</button></div></header>
+      <header className="topbar"><button className="icon-button mobile-menu" onClick={() => setMobileNav(true)} aria-label="Menüyü aç"><Menu size={21} /></button><div className="crumb"><span>{workspace.name}</span><b>/</b><strong>{navItems.find(item => item.key === active)?.label}</strong></div><div className="top-actions"><div className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Ara..." /></div><div className="notification-wrap"><button className="icon-button" onClick={() => { setNotificationsOpen(value => !value); setWorkspaceOpen(false); setProfileOpen(false) }} aria-label="Bildirimler"><Bell size={18} /><i /></button>{notificationsOpen && <div className="popover notification-popover"><div className="notification-head"><strong>Bildirimler</strong><span>3 yeni</span></div><div className="notification-item"><span className="notification-dot amber" /><div><strong>Teklif onayı bekliyor</strong><small>TK-24091 · 4 dk önce</small></div></div><div className="notification-item"><span className="notification-dot blue" /><div><strong>Stok seviyesi kritik</strong><small>PU sertleştirici B · 1 saat önce</small></div></div><div className="notification-item"><span className="notification-dot green" /><div><strong>Yeni müşteri eklendi</strong><small>Mavi Makine · bugün</small></div></div><button className="popover-action">Tüm bildirimleri gör <ArrowRight size={14} /></button></div>}</div><button className="top-avatar" aria-label="Profil menüsünü aç" onClick={() => { setProfileOpen(value => !value); setWorkspaceOpen(false); setNotificationsOpen(false) }}>{session.user.displayName.slice(0, 2).toUpperCase()}</button></div></header>
       <div className="page-content">
         {active !== 'overview' && canAccess(active) && <ModulePage module={active} onNavigate={setActive} onCreate={setComposer} session={session} />}
         {active === 'overview' && !canAccess('overview') && <section className="panel empty-module"><h2>Bu alana erişim izniniz yok</h2><p>Yöneticinizden çalışma alanı görüntüleme izni isteyin.</p></section>}
@@ -161,9 +174,10 @@ function App() {
         <section className="panel quotes-panel"><div className="panel-heading"><div><h2>Son teklifler</h2><p>Kaydedilen teklif kayıtları</p></div><button className="outline-button" onClick={() => setActive('quotes')}>Tüm teklifleri gör <span>→</span></button></div>{recentQuotes.length ? <div className="table-scroll"><table><thead><tr><th>Teklif</th><th>Müşteri</th><th>Sistem</th><th>Tutar</th><th>Durum</th></tr></thead><tbody>{recentQuotes.map(quote => <tr key={quote.id}><td><strong className="quote-id">{quote.quoteNumber}</strong><small>{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</small></td><td><strong>{quote.customerName}</strong></td><td>{quote.productSystemName}</td><td><strong>{quote.total.toLocaleString('tr-TR', { style: 'currency', currency: quote.currency, maximumFractionDigits: 2 })}</strong></td><td><span className={`status ${quote.status === 'Onaylandı' ? 'green' : quote.status === 'Reddedildi' ? 'slate' : quote.status.includes('bekliyor') ? 'amber' : 'blue'}`}><i />{quote.status}</span></td></tr>)}</tbody></table></div> : <p className="empty-state">Henüz teklif yok. İlk teklifinizi oluşturarak başlayın.</p>}</section>
         </>}
       </div>
-      {composer && <CreateFlow type={composer} onClose={() => setComposer(null)} />}
+      {composer && <CreateFlow type={composer} session={session} onClose={() => setComposer(null)} />}
       {resourceAction && <ResourceActionModal type={resourceAction} onClose={() => setResourceAction(null)} />}
       {workspaceModalOpen && <WorkspaceModal onClose={() => setWorkspaceModalOpen(false)} onCreated={addWorkspace} />}
+      {profileSettings && <ProfileSettingsModal session={session} section={profileSettings} onClose={() => setProfileSettings(null)} onProfileUpdated={updateSessionUser} />}
     </main>
   </div>
 }

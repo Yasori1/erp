@@ -42,9 +42,14 @@ export default function QuoteConfirmModal({ session, onClose, data, onConfirm }:
         body: JSON.stringify({
           quoteNumber,
           customerId: data.customer.id,
-          productSystemName: `${data.system} - ${data.location}`,
+          productSystemName: data.system,
           areaM2: data.area,
           total: Math.round((data.estimate.low + data.estimate.high) / 2),
+          estimateLow: data.estimate.low,
+          estimateHigh: data.estimate.high,
+          location: data.location,
+          includeShipping: data.shipping,
+          includeLabor: data.labor,
           marginPercent: 0,
           currency: 'TRY',
         }),
@@ -109,7 +114,7 @@ export default function QuoteConfirmModal({ session, onClose, data, onConfirm }:
               <span>–</span>
               <span className="price-high">₺{data.estimate.high.toLocaleString('tr-TR')}</span>
             </div>
-            <p className="heading-sub">Sisteme aralığın orta değeri kaydedilir. E-posta gönderimi yapılmaz; lokasyon ve nakliye/işçilik tercihleri kayıtta ayrı alanlar olarak tutulmaz.</p>
+            <p className="heading-sub">Fiyat aralığı, lokasyon ve nakliye/işçilik tercihleri teklifle birlikte kaydedilir. E-posta gönderimi henüz etkin değil.</p>
           </div>
 
           {error && <div className="auth-error" role="alert">{error}</div>}

@@ -48,10 +48,21 @@ public sealed class WorkspaceController(
     public async Task<ActionResult<Customer>> CreateCustomer(Customer customer, CancellationToken cancellationToken)
     {
         if (!HasPermission("customers.write")) return Forbid();
-        customer.Id = Guid.NewGuid();
-        db.Customers.Add(customer);
-        await db.SaveChangesAsync(cancellationToken);
-        return CreatedAtAction(nameof(Customers), new { id = customer.Id }, customer);
+        return await SaveCustomerAsync(customer, cancellationToken);
+    }
+
+    [HttpPost("easy-quote/customers")]
+    public async Task<ActionResult<Customer>> CreateEasyQuoteCustomer(Customer customer, CancellationToken cancellationToken)
+    {
+        if (!HasPermission("customers.write") && !HasPermission("easyquote.use")) return Forbid();
+        return await SaveCustomerAsync(customer, cancellationToken);
+    }
+
+    [HttpPost("quotes/customers")]
+    public async Task<ActionResult<Customer>> CreateQuoteCustomer(Customer customer, CancellationToken cancellationToken)
+    {
+        if (!HasPermission("customers.write") && !HasPermission("quotes.write")) return Forbid();
+        return await SaveCustomerAsync(customer, cancellationToken);
     }
 
     [HttpGet("quotes")]
@@ -80,6 +91,11 @@ public sealed class WorkspaceController(
     public async Task<ActionResult<QuoteResponse>> CreateQuote(CreateQuoteRequest request, CancellationToken cancellationToken)
     {
         if (!HasPermission("quotes.write")) return Forbid();
+        if (request.EstimateLow.HasValue != request.EstimateHigh.HasValue ||
+            (request.EstimateLow.HasValue && request.EstimateLow > request.EstimateHigh))
+        {
+            return BadRequest(new { message = "Tahmini fiyat aralığı geçersiz." });
+        }
 
         var currentUserId = CurrentUserId();
         if (currentUserId is null) return Unauthorized();
@@ -102,6 +118,11 @@ public sealed class WorkspaceController(
             ProductSystemName = request.ProductSystemName.Trim(),
             AreaM2 = request.AreaM2,
             Total = request.Total,
+            EstimateLow = request.EstimateLow ?? request.Total,
+            EstimateHigh = request.EstimateHigh ?? request.Total,
+            Location = request.Location?.Trim() ?? string.Empty,
+            IncludeShipping = request.IncludeShipping,
+            IncludeLabor = request.IncludeLabor,
             MarginPercent = request.MarginPercent,
             Currency = request.Currency.ToUpperInvariant(),
             AssignedToUserId = assignedToUserId,
@@ -135,12 +156,19 @@ public sealed class WorkspaceController(
         if (!HasPermission("easyquote.use")) return Forbid();
         if (request.AreaM2 <= 0) return BadRequest(new { message = "Alan 0'dan büyük olmalıdır." });
 
+        var productSystemName = request.ProductSystemName.Trim();
+        var legacyProductPrefix = productSystemName + " -";
         var history = await db.Quotes.AsNoTracking()
-            .Where(item => item.ProductSystemName == request.ProductSystemName && item.Currency == "TRY" && item.AreaM2 > 0 && item.Total > 0)
+            .Where(item => (item.ProductSystemName == productSystemName || item.ProductSystemName.StartsWith(legacyProductPrefix)) &&
+                item.Currency == "TRY" && item.AreaM2 > 0 && item.Total > 0)
             .Select(item => new { item.Total, item.AreaM2 })
             .ToListAsync(cancellationToken);
         var averagePerM2 = history.Count > 0 ? history.Average(item => item.Total / item.AreaM2) : 660m;
-        var locationFactor = request.Location.Equals("İstanbul", StringComparison.OrdinalIgnoreCase) ? 1.16m : request.Location.Equals("Manisa", StringComparison.OrdinalIgnoreCase) ? 1.08m : 1m;
+        var location = request.Location.Trim();
+        var locationFactor = location.Equals("İstanbul", StringComparison.OrdinalIgnoreCase) ? 1.16m
+            : location.Equals("Manisa", StringComparison.OrdinalIgnoreCase) ? 1.08m
+            : location.Equals("Bornova", StringComparison.OrdinalIgnoreCase) ? 1.02m
+            : 1m;
         var shipping = request.IncludeShipping ? Math.Max(3500m, request.AreaM2 * 18m) : 0;
         var laborIncluded = request.IncludeLabor ? 0 : -(request.AreaM2 * averagePerM2 * .25m);
         var estimate = request.AreaM2 * averagePerM2 * locationFactor + shipping + laborIncluded;
@@ -152,6 +180,14 @@ public sealed class WorkspaceController(
 
     private bool IsManagement() => User.IsInRole("Admin") || User.IsInRole("FounderGeneralManager");
 
+    private async Task<ActionResult<Customer>> SaveCustomerAsync(Customer customer, CancellationToken cancellationToken)
+    {
+        customer.Id = Guid.NewGuid();
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync(cancellationToken);
+        return CreatedAtAction(nameof(Customers), new { id = customer.Id }, customer);
+    }
+
     private Guid? CurrentUserId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub"), out var id)
         ? id
         : null;
@@ -162,6 +198,12 @@ public sealed class WorkspaceController(
         quote.AreaM2,
         quote.Total,
         quote.Currency,
+        quote.ProductSystemName,
+        quote.EstimateLow,
+        quote.EstimateHigh,
+        quote.Location,
+        quote.IncludeShipping,
+        quote.IncludeLabor,
         quote.AssignedToUserId,
         quote.RequiresManagementApproval,
         quote.ApprovalStatus,

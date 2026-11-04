@@ -19,6 +19,19 @@ public sealed record CreateQuoteRequest
     [Range(0, 1000000000)]
     public decimal Total { get; init; }
 
+    [Range(0, 1000000000)]
+    public decimal? EstimateLow { get; init; }
+
+    [Range(0, 1000000000)]
+    public decimal? EstimateHigh { get; init; }
+
+    [MaxLength(120)]
+    public string Location { get; init; } = string.Empty;
+
+    public bool IncludeShipping { get; init; }
+
+    public bool IncludeLabor { get; init; }
+
     [Range(0, 100)]
     public decimal MarginPercent { get; init; }
 
@@ -35,11 +48,32 @@ public sealed record QuoteResponse(
     decimal AreaM2,
     decimal Total,
     string Currency,
+    string ProductSystemName,
+    decimal EstimateLow,
+    decimal EstimateHigh,
+    string Location,
+    bool IncludeShipping,
+    bool IncludeLabor,
     Guid? AssignedToUserId,
     bool RequiresManagementApproval,
     string ApprovalStatus,
     string Status);
 
 /// <summary>Input for a historical-data quick estimate.</summary>
-public sealed record EasyQuoteRequest(string ProductSystemName, decimal AreaM2, string Location, bool IncludeShipping, bool IncludeLabor);
+public sealed record EasyQuoteRequest
+{
+    [Required, MaxLength(120)]
+    public required string ProductSystemName { get; init; }
+
+    [Range(0.01, 100000000)]
+    public decimal AreaM2 { get; init; }
+
+    [Required, MaxLength(120)]
+    public required string Location { get; init; }
+
+    public bool IncludeShipping { get; init; }
+
+    public bool IncludeLabor { get; init; }
+}
+
 public sealed record EasyQuoteResponse(decimal Low, decimal High, decimal AveragePerM2, int HistoricalQuoteCount, bool IsHistoricalDataAvailable);

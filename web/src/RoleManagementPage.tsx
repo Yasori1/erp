@@ -9,6 +9,16 @@ type Permission = { key: string; label: string; group: string }
 type Role = { id: string; code: string; name: string; permissions: string[]; isSystemRole: boolean }
 type ManagedUser = { id: string; email: string; displayName: string; role: string; isActive: boolean; approvalAreaLimitM2: number; approvalForeignCurrencyLimit: number }
 type UserSettings = { role: string; areaLimit: string; foreignLimit: string }
+type AccountChangeRequest = {
+  id: string
+  userId: string
+  currentEmail: string
+  currentDisplayName: string
+  requestedEmail: string | null
+  requestedDisplayName: string | null
+  hasPasswordChange: boolean
+  requestedAtUtc: string
+}
 
 const permissions: Permission[] = [
   { key: 'workspace.read', label: 'Genel bakışı görüntüleme', group: 'Çalışma alanı' },
@@ -34,6 +44,7 @@ const permissions: Permission[] = [
 export default function RoleManagementPage({ session }: { session: Session }) {
   const [roles, setRoles] = useState<Role[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
+  const [accountChangeRequests, setAccountChangeRequests] = useState<AccountChangeRequest[]>([])
   const [userSettings, setUserSettings] = useState<Record<string, UserSettings>>({})
   const [selectedCode, setSelectedCode] = useState('')
   const [createName, setCreateName] = useState('')
@@ -53,13 +64,15 @@ export default function RoleManagementPage({ session }: { session: Session }) {
     async function load() {
       setLoading(true)
       try {
-        const [roleData, userData] = await Promise.all([
+        const [roleData, userData, accountChangeData] = await Promise.all([
           apiRequest<Role[]>(session, '/api/management/roles'),
           apiRequest<ManagedUser[]>(session, '/api/management/users'),
+          apiRequest<AccountChangeRequest[]>(session, '/api/management/account-change-requests'),
         ])
         if (!active) return
         setRoles(roleData)
         setUsers(userData)
+        setAccountChangeRequests(accountChangeData)
         setUserSettings(Object.fromEntries(userData.map(user => [user.id, {
           role: user.role,
           areaLimit: String(user.approvalAreaLimitM2),
@@ -77,6 +90,25 @@ export default function RoleManagementPage({ session }: { session: Session }) {
     void load()
     return () => { active = false }
   }, [session])
+
+  async function reviewAccountChange(requestId: string, decision: 'approve' | 'reject') {
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      await apiRequest<void>(session, `/api/management/account-change-requests/${requestId}/${decision}`, { method: 'POST' })
+      setAccountChangeRequests(current => current.filter(request => request.id !== requestId))
+      setMessage(decision === 'approve' ? 'Hesap değişikliği onaylandı.' : 'Hesap değişikliği reddedildi.')
+      if (decision === 'approve') {
+        const refreshedUsers = await apiRequest<ManagedUser[]>(session, '/api/management/users')
+        setUsers(refreshedUsers)
+      }
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Hesap değişikliği kararı kaydedilemedi.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function togglePermission(permission: string) {
     if (!selected || selected.code === 'FounderGeneralManager') return
@@ -238,6 +270,7 @@ export default function RoleManagementPage({ session }: { session: Session }) {
     {error && <p className="role-message error" role="alert">{error}</p>}
     {message && <p className="role-message success" role="status">{message}</p>}
     {inviteUrl && <section className="invite-link-panel"><div><strong>Personel davet bağlantısı</strong><small>Demo bağlantısı bu tarayıcıda çalışır ve 48 saat sonra geçersiz olur.</small></div><div><input aria-label="Davet bağlantısı" readOnly value={inviteUrl} onFocus={event => event.currentTarget.select()} /><button className="outline-button" onClick={() => void copyInvite()}>Bağlantıyı kopyala</button><button className="icon-button" aria-label="Davet bağlantısını kapat" onClick={() => setInviteUrl('')}>×</button></div></section>}
+    {!loading && <section className="panel user-admin-panel"><div className="role-admin-title"><div><h2>Hesap değişikliği onayları</h2><p>{accountChangeRequests.length} bekleyen talep</p></div><ShieldCheck size={18} /></div>{accountChangeRequests.length === 0 ? <p className="empty-state">Bekleyen hesap değişikliği yok.</p> : <div className="table-scroll"><table><thead><tr><th>Personel</th><th>Mevcut hesap</th><th>Talep edilen değişiklik</th><th>Talep tarihi</th><th>Karar</th></tr></thead><tbody>{accountChangeRequests.map(request => <tr key={request.id}><td><strong>{request.currentDisplayName}</strong></td><td>{request.currentEmail}</td><td>{[request.requestedDisplayName && `Ad: ${request.requestedDisplayName}`, request.requestedEmail && `E-posta: ${request.requestedEmail}`, request.hasPasswordChange && 'Şifre değişikliği'].filter(Boolean).join(' · ')}</td><td>{new Date(request.requestedAtUtc).toLocaleString('tr-TR')}</td><td><div className="role-header-actions"><button className="primary-button" disabled={saving} onClick={() => void reviewAccountChange(request.id, 'approve')}>Onayla</button><button className="outline-button" disabled={saving} onClick={() => void reviewAccountChange(request.id, 'reject')}>Reddet</button></div></td></tr>)}</tbody></table></div>}</section>}
     {creating && <form className="role-create-form" onSubmit={createRole}><label>Yeni rol adı<input required minLength={2} maxLength={80} value={createName} onChange={event => setCreateName(event.target.value)} placeholder="Örn. Saha Ekip Lideri" /></label><button className="primary-button" disabled={saving}><Check size={15} /> Rolü oluştur</button></form>}
     {addingUser && session.mode === 'demo' && <form className="employee-create-form" onSubmit={createUser}><label>Ad soyad<input required maxLength={120} value={newUser.displayName} onChange={event => setNewUser(current => ({ ...current, displayName: event.target.value }))} placeholder="Personel adı" /></label><label>Kurumsal e-posta<input required type="email" maxLength={180} value={newUser.email} onChange={event => setNewUser(current => ({ ...current, email: event.target.value }))} placeholder="ad@firma.com" /></label><label>Rol<select required value={newUser.role} onChange={event => setNewUser(current => ({ ...current, role: event.target.value }))}><option value="">Rol seçin</option>{roles.filter(role => role.code !== 'FounderGeneralManager').map(role => <option value={role.code} key={role.code}>{role.name}</option>)}</select></label><label>Alan onay sınırı (m²)<input required type="number" min="0" value={newUser.areaLimit} onChange={event => setNewUser(current => ({ ...current, areaLimit: event.target.value }))} /></label><label>Döviz onay sınırı<input required type="number" min="0" value={newUser.foreignLimit} onChange={event => setNewUser(current => ({ ...current, foreignLimit: event.target.value }))} /></label><div className="employee-form-actions"><small>Demo daveti 48 saat geçerlidir; e-posta otomatik gönderilmez.</small><button className="primary-button" disabled={saving}><Check size={15} /> Davet bağlantısı oluştur</button></div></form>}
     {addingUser && session.mode !== 'demo' && <p className="role-message">Gerçek kullanıcı davet endpoint’i henüz eklenmedi; bu alan demo önizlemesinde kullanılabilir.</p>}

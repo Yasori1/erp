@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Calculator, CheckCircle2, MapPin, Package, Ruler, Sparkles, Truck, UserRound } from 'lucide-react'
 import CustomerModal, { type Customer } from './CustomerModal'
 import QuoteConfirmModal from './QuoteConfirmModal'
@@ -7,22 +7,34 @@ import { apiRequest } from './api'
 import './easyquote.css'
 import './easyquote-flow.css'
 
-const systems = [
-  { name: 'Tatami', average: 365, material: 245, labor: 120 },
-  { name: 'Self-leveling epoksi', average: 660, material: 485, labor: 175 },
-  { name: 'Hijyenik poliüretan', average: 830, material: 620, labor: 210 },
-  { name: 'Endüstriyel epoksi', average: 970, material: 710, labor: 260 }
-]
+const systems = ['Tatami', 'Self-leveling epoksi', 'Hijyenik poliüretan', 'Endüstriyel epoksi']
 
-const locations = [
-  { name: 'Karşıyaka', factor: 1 },
-  { name: 'Bornova', factor: 1.02 },
-  { name: 'Manisa', factor: 1.08 },
-  { name: 'İstanbul', factor: 1.16 }
-]
+const locations = ['Karşıyaka', 'Bornova', 'Manisa', 'İstanbul']
+
+type EasyQuoteEstimate = {
+  low: number
+  high: number
+  averagePerM2: number
+  historicalQuoteCount: number
+  isHistoricalDataAvailable: boolean
+}
+
+type EasyQuoteRequest = {
+  productSystemName: string
+  areaM2: number
+  location: string
+  includeShipping: boolean
+  includeLabor: boolean
+}
+
+type EasyQuoteResult = {
+  requestKey: string
+  estimate?: EasyQuoteEstimate
+  error?: string
+}
 
 type QuoteDraft = {
-  estimate: { low: number; high: number }
+  estimate: EasyQuoteEstimate
   area: string
   system: string
   location: string
@@ -50,27 +62,51 @@ export default function EasyQuotePage({ session }: { session: Session }) {
   const [location, setLocation] = useState('Karşıyaka')
   const [shipping, setShipping] = useState(true)
   const [labor, setLabor] = useState(true)
+  const [estimateResult, setEstimateResult] = useState<EasyQuoteResult | null>(null)
 
   const [customerModalOpen, setCustomerModalOpen] = useState(false)
   const [quoteTemp, setQuoteTemp] = useState<QuoteDraft | null>(null)
   const [quoteConfirmOpen, setQuoteConfirmOpen] = useState(false)
   const [confirmData, setConfirmData] = useState<QuoteConfirmData | null>(null)
 
-  const selected = systems.find(item => item.name === system) ?? systems[0]
-  const selectedLocation = locations.find(item => item.name === location) ?? locations[0]
+  const areaM2 = Number(area)
+  const estimateRequest: EasyQuoteRequest = {
+    productSystemName: system,
+    areaM2,
+    location,
+    includeShipping: shipping,
+    includeLabor: labor,
+  }
+  const estimateRequestKey = JSON.stringify(estimateRequest)
+  const validArea = Number.isFinite(areaM2) && areaM2 > 0
 
-  const estimate = useMemo(() => {
-    const squareMeters = Number(area) || 0
-    const base = squareMeters * selected.average * selectedLocation.factor
-    const shippingCost = shipping ? Math.max(3500, squareMeters * 18) : 0
-    const laborAdjustment = labor ? 0 : -(squareMeters * selected.labor)
-    const total = base + shippingCost + laborAdjustment
+  useEffect(() => {
+    if (!validArea) return
+    let active = true
+    const timeoutId = window.setTimeout(() => {
+      void apiRequest<EasyQuoteEstimate>(session, '/api/workspace/easy-quote', {
+        method: 'POST',
+        body: estimateRequestKey,
+      }).then(result => {
+        if (active) setEstimateResult({ requestKey: estimateRequestKey, estimate: result })
+      }).catch(requestError => {
+        if (active) setEstimateResult({
+          requestKey: estimateRequestKey,
+          error: requestError instanceof Error ? requestError.message : 'Fiyat hesaplanamadı.',
+        })
+      })
+    }, 250)
 
-    return {
-      low: Math.round(total * 0.94),
-      high: Math.round(total * 1.06)
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
     }
-  }, [area, labor, selected, selectedLocation, shipping])
+  }, [estimateRequestKey, session, validArea])
+
+  const currentEstimateResult = estimateResult?.requestKey === estimateRequestKey ? estimateResult : null
+  const estimate = currentEstimateResult?.estimate ?? null
+  const estimateError = currentEstimateResult?.error ?? ''
+  const estimateLoading = validArea && currentEstimateResult === null
 
   const handleConvertToQuote = () => {
     if (!estimate) return
@@ -90,7 +126,7 @@ export default function EasyQuotePage({ session }: { session: Session }) {
 
     let savedCustomer = customer
     if (!customer.id) {
-      const record = await apiRequest<CustomerRecord>(session, '/api/workspace/customers', {
+      const record = await apiRequest<CustomerRecord>(session, '/api/workspace/easy-quote/customers', {
         method: 'POST',
         body: JSON.stringify({
           companyName: customer.name,
@@ -162,7 +198,7 @@ export default function EasyQuotePage({ session }: { session: Session }) {
                 onChange={event => setSystem(event.target.value)}
               >
                 {systems.map(item => (
-                  <option key={item.name}>{item.name}</option>
+                  <option key={item}>{item}</option>
                 ))}
               </select>
             </label>
@@ -190,7 +226,7 @@ export default function EasyQuotePage({ session }: { session: Session }) {
                 onChange={event => setLocation(event.target.value)}
               >
                 {locations.map(item => (
-                  <option key={item.name}>{item.name}</option>
+                  <option key={item}>{item}</option>
                 ))}
               </select>
             </label>
@@ -228,7 +264,19 @@ export default function EasyQuotePage({ session }: { session: Session }) {
 
           <div className="easy-source">
             <CheckCircle2 size={15} />
-            <span>Bu hesap, geçmişteki {system} tekliflerinden alınan ortalama değerleri kullanır.</span>
+            <span>
+              {!validArea
+                ? 'Geçerli bir uygulama alanı girin.'
+                : estimateLoading
+                ? 'Geçmiş teklifler inceleniyor...'
+                : estimateError
+                  ? 'Fiyat hesaplaması başarısız oldu.'
+                  : estimate?.isHistoricalDataAvailable
+                    ? `${estimate.historicalQuoteCount} geçmiş ${system} teklifine göre hesaplandı.`
+                    : estimate
+                      ? 'Bu sistem için geçmiş teklif bulunamadı; başlangıç tahmini kullanılıyor.'
+                      : 'Fiyat hesaplaması bekleniyor.'}
+            </span>
           </div>
         </section>
 
@@ -236,36 +284,36 @@ export default function EasyQuotePage({ session }: { session: Session }) {
           <div className="result-label">TAHMİNİ FİYAT ARALIĞI</div>
 
           <div className="result-range">
-            ₺{estimate.low.toLocaleString('tr-TR')}
+            {estimateLoading ? 'Hesaplanıyor...' : estimate ? `₺${estimate.low.toLocaleString('tr-TR')}` : '—'}
             <span>-</span>
-            ₺{estimate.high.toLocaleString('tr-TR')}
+            {estimateLoading ? '...' : estimate ? `₺${estimate.high.toLocaleString('tr-TR')}` : '—'}
           </div>
+
+          {estimateError && <p className="auth-error" role="alert">{estimateError}</p>}
 
           <p className="result-caption">{area || 0} m² · {system} · {location}</p>
 
           <div className="result-breakdown">
             <div>
               <small>Ortalama m²</small>
-              <strong>₺{Math.round(selected.average * selectedLocation.factor)}</strong>
+              <strong>{estimate ? `₺${Math.round(estimate.averagePerM2).toLocaleString('tr-TR')}` : '—'}</strong>
             </div>
             <div>
-              <small>Ürün / m²</small>
-              <strong>₺{selected.material}</strong>
+              <small>Geçmiş teklif</small>
+              <strong>{estimate?.historicalQuoteCount ?? '—'}</strong>
             </div>
             <div>
-              <small>İşçilik / m²</small>
-              <strong>{labor ? `₺${selected.labor}` : 'Hariç'}</strong>
+              <small>Nakliye / işçilik</small>
+              <strong>{shipping ? 'Nakliye dahil' : 'Nakliye hariç'} · {labor ? 'işçilik dahil' : 'işçilik hariç'}</strong>
             </div>
           </div>
 
           <div className="result-warning">
             <Sparkles size={15} />
-            <p>
-              Bu fiyat geçmiş veriler ve ortalama değerler üzerinden yaklaşık olarak hesaplanmıştır, kesin teklif değildir.
-            </p>
+            <p>Bu fiyat API tarafından geçmiş teklif verileri üzerinden yaklaşık olarak hesaplanmıştır, kesin teklif değildir.</p>
           </div>
 
-          <button className="primary-button easy-create" onClick={handleConvertToQuote} disabled={Number(area) <= 0}>
+          <button className="primary-button easy-create" onClick={handleConvertToQuote} disabled={Number(area) <= 0 || !estimate || estimateLoading}>
             <Calculator size={15} />{''}
             Teklife dönüştür
           </button>

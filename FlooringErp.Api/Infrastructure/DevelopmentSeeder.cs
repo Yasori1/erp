@@ -68,18 +68,22 @@ public static class DevelopmentSeeder
 
     private static async Task AddUserAsync(AppDbContext db, IPasswordHasher<AppUser> hasher, Guid tenantId, string email, string displayName, string role, string password, string permissions)
     {
-        if (await db.Users.IgnoreQueryFilters().AnyAsync(item => item.TenantId == tenantId && item.Email == email)) return;
-
-        var user = new AppUser
+        var user = await db.Users.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId && item.Email == email);
+        if (user is null)
         {
-            TenantId = tenantId,
-            Email = email,
-            DisplayName = displayName,
-            Role = role,
-            Permissions = permissions
-        };
-        user.PasswordHash = hasher.HashPassword(user, password);
-        db.Users.Add(user);
+            user = new AppUser
+            {
+                TenantId = tenantId,
+                Email = email,
+                DisplayName = displayName,
+                Role = role,
+                Permissions = permissions
+            };
+            user.PasswordHash = hasher.HashPassword(user, password);
+            db.Users.Add(user);
+        }
+
         await db.SaveChangesAsync();
     }
 }

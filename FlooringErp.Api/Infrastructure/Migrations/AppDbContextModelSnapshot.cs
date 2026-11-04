@@ -114,6 +114,47 @@ namespace FlooringErp.Api.Infrastructure.Migrations
                     b.ToTable("Customers");
                 });
 
+            modelBuilder.Entity("FlooringErp.Api.Domain.PendingAccountChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("RequestedDisplayName")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("RequestedEmail")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("RequestedPasswordHash")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "UserId", "Status");
+
+                    b.ToTable("PendingAccountChanges");
+                });
+
             modelBuilder.Entity("FlooringErp.Api.Domain.ProductSystem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -205,6 +246,22 @@ namespace FlooringErp.Api.Infrastructure.Migrations
 
                     b.Property<Guid?>("CustomerId")
                         .HasColumnType("char(36)");
+
+                    b.Property<decimal>("EstimateHigh")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<decimal>("EstimateLow")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<bool>("IncludeLabor")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IncludeShipping")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("LockedByUserId")
                         .HasColumnType("longtext");
@@ -324,6 +381,24 @@ namespace FlooringErp.Api.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FlooringErp.Api.Domain.PendingAccountChange", b =>
+                {
+                    b.HasOne("FlooringErp.Api.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FlooringErp.Api.Domain.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("TenantId", "UserId")
+                        .HasPrincipalKey("TenantId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FlooringErp.Api.Domain.ProductSystem", b =>

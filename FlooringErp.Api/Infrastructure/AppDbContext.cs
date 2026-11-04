@@ -9,6 +9,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<RoleDefinition> RoleDefinitions => Set<RoleDefinition>();
+    public DbSet<PendingAccountChange> PendingAccountChanges => Set<PendingAccountChange>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProductSystem> ProductSystems => Set<ProductSystem>();
@@ -24,6 +25,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
         modelBuilder.Entity<AppUser>().HasAlternateKey(item => new { item.TenantId, item.Id });
         modelBuilder.Entity<Customer>().HasAlternateKey(item => new { item.TenantId, item.Id });
+        modelBuilder.Entity<PendingAccountChange>().HasIndex(item => new { item.TenantId, item.UserId, item.Status });
 
         modelBuilder.Entity<AppUser>()
             .HasOne(item => item.Tenant)
@@ -32,6 +34,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
             .OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<RoleDefinition>()
             .HasOne(item => item.Tenant)
+            .WithMany()
+            .HasForeignKey(item => item.TenantId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<PendingAccountChange>()
+            .HasOne(item => item.User)
+            .WithMany()
+            .HasForeignKey(item => new { item.TenantId, item.UserId })
+            .HasPrincipalKey(item => new { item.TenantId, item.Id })
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<PendingAccountChange>()
+            .HasOne<Tenant>()
             .WithMany()
             .HasForeignKey(item => item.TenantId)
             .OnDelete(DeleteBehavior.Restrict);
@@ -77,6 +90,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ITenant
 
         modelBuilder.Entity<AppUser>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
         modelBuilder.Entity<RoleDefinition>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
+        modelBuilder.Entity<PendingAccountChange>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
         modelBuilder.Entity<Customer>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
         modelBuilder.Entity<Project>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);
         modelBuilder.Entity<ProductSystem>().HasQueryFilter(item => item.TenantId == tenantContext.TenantId);

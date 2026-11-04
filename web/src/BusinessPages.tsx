@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Check, ClipboardList, Plus, Search, UserRound } from 'lucide-react'
 import type { CreateType } from './ModulePage'
 import { loadAuditEvents, loadCustomerActivities, loadCustomers, loadProjectUpdates, loadProjects, loadQuotes, recordAudit, saveCustomerActivities, saveCustomers, saveProjectUpdates, saveProjects, saveQuotes, type CustomerActivity, type ProjectUpdate, type SavedQuote } from './commercialData'
+import type { Session } from './LoginPage'
 import './business-pages.css'
 
 export function CustomerCrmPage() {
@@ -55,7 +56,7 @@ export function CustomerCrmPage() {
   </>
 }
 
-export function QuotesWorkflowPage({ onCreate }: { onCreate: (type: CreateType) => void }) {
+export function QuotesWorkflowPage({ onCreate, session }: { onCreate: (type: CreateType) => void; session: Session }) {
   const [quotes, setQuotes] = useState(loadQuotes)
   const [filter, setFilter] = useState('Tümü')
   const [rejecting, setRejecting] = useState('')
@@ -63,6 +64,9 @@ export function QuotesWorkflowPage({ onCreate }: { onCreate: (type: CreateType) 
   useEffect(() => { const refresh = () => setQuotes(loadQuotes()); window.addEventListener('hutec-demo-data-changed', refresh); return () => window.removeEventListener('hutec-demo-data-changed', refresh) }, [])
   const filters = ['Tümü', 'Taslak', 'Yönetim onayı bekliyor', 'Onaylandı', 'Reddedildi', 'Revizyonda']
   const filtered = filter === 'Tümü' ? quotes : quotes.filter(quote => quote.status === filter)
+  const canApproveQuotes = session.user.role === 'Admin' ||
+    session.user.role === 'FounderGeneralManager' ||
+    session.user.permissions.includes('quotes.approve')
 
   function changeStatus(quote: SavedQuote, status: string, approvalReason = '') {
     const updated = { ...quote, status, approvalReason, revision: status === 'Revizyonda' ? (quote.revision ?? 0) + 1 : quote.revision }
@@ -73,9 +77,9 @@ export function QuotesWorkflowPage({ onCreate }: { onCreate: (type: CreateType) 
     setReason('')
   }
 
-  return <><section className="module-header"><div><p className="eyebrow">SATI�? / TEKLİFLER</p><h1>Teklif çalışma alanı</h1><p className="heading-sub">Teklifleri hazırlayın, onaylayın, revizyona alın ve projeye dönüştürün.</p></div><button className="primary-button" onClick={() => onCreate('quote')}><Plus size={16} /> Yeni teklif</button></section>
+  return <><section className="module-header"><div><p className="eyebrow">SATIŞ / TEKLİFLER</p><h1>Teklif çalışma alanı</h1><p className="heading-sub">Teklifleri hazırlayın, onaylayın, revizyona alın ve projeye dönüştürün.</p></div><button className="primary-button" onClick={() => onCreate('quote')}><Plus size={16} /> Yeni teklif</button></section>
     <div className="module-tabs business-tabs">{filters.map(item => <button key={item} className={filter === item ? 'tab-active' : ''} onClick={() => setFilter(item)}>{item}{item === 'Yönetim onayı bekliyor' && <b>{quotes.filter(quote => quote.status === item).length}</b>}</button>)}</div>
-    <section className="quote-workflow-list">{filtered.map(quote => <article className="panel quote-workflow-card" key={quote.id}><div className="quote-workflow-main"><div className="quote-workflow-meta"><span className="quote-id">{quote.quoteNumber}</span><span>{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</span><span>Rev. {quote.revision ?? 1}</span></div><h2>{quote.customerName}</h2><p>{quote.productSystemName} · {quote.areaM2.toLocaleString('tr-TR')} m² · {quote.salesChannel === 'Dealer' ? 'Bayi' : 'Perakende'}</p><div className="business-contact"><span>{quote.contactEmail || 'E-posta yok'}</span><span>{quote.contactPhone || 'Telefon yok'}</span></div>{quote.approvalReason && <p className="quote-reject-reason">Gerekçe: {quote.approvalReason}</p>}</div><div className="quote-workflow-total"><span className={`status ${quote.status === 'Onaylandı' ? 'green' : quote.status === 'Reddedildi' ? 'red' : quote.status.includes('bekliyor') ? 'amber' : 'slate'}`}><i />{quote.status}</span><strong>{quote.total.toLocaleString('tr-TR', { style: 'currency', currency: quote.currency, maximumFractionDigits: 2 })}</strong><small>Liste: {quote.baseTotal.toLocaleString('tr-TR', { style: 'currency', currency: quote.currency, maximumFractionDigits: 2 })}</small></div>{quote.status === 'Yönetim onayı bekliyor' && <div className="quote-workflow-actions"><button className="primary-button" onClick={() => changeStatus(quote, 'Onaylandı')}><Check size={15} /> Onayla</button><button className="outline-button" onClick={() => setRejecting(quote.id)}>Reddet</button><button className="outline-button" onClick={() => changeStatus(quote, 'Revizyonda')}>Revizyona gönder</button></div>}{rejecting === quote.id && <form className="quote-reject-form" onSubmit={event => { event.preventDefault(); if (reason.trim()) changeStatus(quote, 'Reddedildi', reason.trim()) }}><textarea required placeholder="Ret gerekçesi" value={reason} onChange={event => setReason(event.target.value)} /><button className="primary-button">Red kararını kaydet</button><button type="button" className="outline-button" onClick={() => setRejecting('')}>Vazgeç</button></form>}</article>)}{filtered.length === 0 && <p className="empty-state">Bu durumda teklif yok.</p>}</section>
+    <section className="quote-workflow-list">{filtered.map(quote => <article className="panel quote-workflow-card" key={quote.id}><div className="quote-workflow-main"><div className="quote-workflow-meta"><span className="quote-id">{quote.quoteNumber}</span><span>{new Date(quote.createdAt).toLocaleDateString('tr-TR')}</span><span>Rev. {quote.revision ?? 1}</span></div><h2>{quote.customerName}</h2><p>{quote.productSystemName} · {quote.areaM2.toLocaleString('tr-TR')} m² · {quote.salesChannel === 'Dealer' ? 'Bayi' : 'Perakende'}</p><div className="business-contact"><span>{quote.contactEmail || 'E-posta yok'}</span><span>{quote.contactPhone || 'Telefon yok'}</span></div>{quote.approvalReason && <p className="quote-reject-reason">Gerekçe: {quote.approvalReason}</p>}</div><div className="quote-workflow-total"><span className={`status ${quote.status === 'Onaylandı' ? 'green' : quote.status === 'Reddedildi' ? 'red' : quote.status.includes('bekliyor') ? 'amber' : 'slate'}`}><i />{quote.status}</span><strong>{quote.total.toLocaleString('tr-TR', { style: 'currency', currency: quote.currency, maximumFractionDigits: 2 })}</strong><small>Liste: {quote.baseTotal.toLocaleString('tr-TR', { style: 'currency', currency: quote.currency, maximumFractionDigits: 2 })}</small></div>{canApproveQuotes && quote.status === 'Yönetim onayı bekliyor' && <div className="quote-workflow-actions"><button className="primary-button" onClick={() => changeStatus(quote, 'Onaylandı')}><Check size={15} /> Onayla</button><button className="outline-button" onClick={() => setRejecting(quote.id)}>Reddet</button><button className="outline-button" onClick={() => changeStatus(quote, 'Revizyonda')}>Revizyona gönder</button></div>}{canApproveQuotes && rejecting === quote.id && <form className="quote-reject-form" onSubmit={event => { event.preventDefault(); if (reason.trim()) changeStatus(quote, 'Reddedildi', reason.trim()) }}><textarea required placeholder="Ret gerekçesi" value={reason} onChange={event => setReason(event.target.value)} /><button className="primary-button">Red kararını kaydet</button><button type="button" className="outline-button" onClick={() => setRejecting('')}>Vazgeç</button></form>}</article>)}{filtered.length === 0 && <p className="empty-state">Bu durumda teklif yok.</p>}</section>
   </>
 }
 
